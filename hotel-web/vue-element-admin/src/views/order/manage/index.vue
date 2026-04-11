@@ -127,22 +127,52 @@
       </span>
     </el-dialog>
 
-    <el-dialog title="订单详情" :visible.sync="detailDialogVisible" width="700px">
+    <el-dialog title="订单详情" :visible.sync="detailDialogVisible" width="860px">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
-      <el-descriptions v-else :column="2" border>
-        <el-descriptions-item label="订单ID">{{ detailData.id || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="订单号">{{ detailData.orderNumber || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="客户ID">{{ detailData.customerId || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="房间ID">{{ detailData.roomId || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="入住日期">{{ detailData.checkInDate || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="退房日期">{{ detailData.checkOutDate || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="总金额">{{ detailData.totalAmount || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ orderStatusLabel(detailData.status) }}</el-descriptions-item>
-        <el-descriptions-item label="创建人ID">{{ detailData.createUserId || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ detailData.createTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ detailData.updateTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</el-descriptions-item>
-      </el-descriptions>
+      <div v-else>
+        <el-divider content-position="left">订单信息</el-divider>
+        <el-descriptions :column="3" border size="small">
+          <el-descriptions-item label="订单ID">{{ detailData.id || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="订单号">{{ detailData.orderNumber || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ orderStatusLabel(detailData.status) }}</el-descriptions-item>
+          <el-descriptions-item label="总金额">{{ formatAmount(detailData.totalAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="入住日期">{{ detailData.checkInDate || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="退房日期">{{ detailData.checkOutDate || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="入住天数">{{ stayNights(detailData) }}</el-descriptions-item>
+          <el-descriptions-item label="客户ID">{{ detailData.customerId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="房间ID">{{ detailData.roomId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="备注" :span="3">{{ detailData.remark || '-' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <el-divider content-position="left">房间信息</el-divider>
+        <el-descriptions :column="3" border size="small">
+          <el-descriptions-item label="房间ID">{{ detailRoom.id || detailData.roomId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="房间号">{{ detailRoom.roomNumber || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="楼层">{{ detailRoom.floor || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="房型ID">{{ detailRoom.roomTypeId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="房态">{{ roomStatusLabel(detailRoom.status || '-') }}</el-descriptions-item>
+          <el-descriptions-item label="参考价格">{{ formatAmount(detailRoom.price) }}</el-descriptions-item>
+        </el-descriptions>
+
+        <el-divider content-position="left">顾客信息</el-divider>
+        <el-descriptions :column="3" border size="small">
+          <el-descriptions-item label="客户ID">{{ detailCustomer.id || detailData.customerId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="姓名">{{ detailCustomer.realName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="用户名">{{ detailCustomer.username || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="手机号">{{ detailCustomer.phone || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="身份证">{{ detailCustomer.idCard || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="性别">{{ genderLabel(detailCustomer.gender) }}</el-descriptions-item>
+          <el-descriptions-item label="账户状态">{{ enableStatusLabel(detailCustomer.status) || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="账户余额">{{ formatAmount(detailCustomer.balance) }}</el-descriptions-item>
+        </el-descriptions>
+
+        <el-divider content-position="left">操作信息</el-divider>
+        <el-descriptions :column="3" border size="small">
+          <el-descriptions-item label="下单人ID">{{ detailData.createUserId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="下单时间">{{ formatDateTime(detailData.createTime) }}</el-descriptions-item>
+          <el-descriptions-item label="更新时间">{{ formatDateTime(detailData.updateTime) }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
       <span slot="footer" class="dialog-footer">
         <el-button type="primary" @click="detailDialogVisible = false">关闭</el-button>
       </span>
@@ -161,9 +191,9 @@ import {
   checkOutOrder,
   cancelOrder
 } from '@/api/orders'
-import { listCustomers } from '@/api/customers'
+import { listCustomers, getCustomerDetail } from '@/api/customers'
 import { listAvailableRooms, getRoomDetail } from '@/api/rooms'
-import { ORDER_STATUS_OPTIONS, getOrderStatusLabel, getRoomStatusLabel } from '@/constants/dict'
+import { ORDER_STATUS_OPTIONS, getEnableStatusLabel, getGenderLabel, getOrderStatusLabel, getRoomStatusLabel } from '@/constants/dict'
 
 const createDefaultForm = () => ({
   id: null,
@@ -199,6 +229,8 @@ export default {
       detailDialogVisible: false,
       detailLoading: false,
       detailData: {},
+      detailCustomer: {},
+      detailRoom: {},
       rules: {
         customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
         roomId: [{ required: true, message: '请选择房间', trigger: 'change' }],
@@ -339,7 +371,37 @@ export default {
       this.detailLoading = true
       try {
         const res = await getOrderDetail(row.id)
-        this.detailData = res.data || {}
+        const order = res.data || row || {}
+        this.detailData = order
+        this.detailCustomer = {}
+        this.detailRoom = {}
+
+        const requests = []
+        if (order.customerId) {
+          requests.push(
+            getCustomerDetail(order.customerId)
+              .then(customerRes => {
+                this.detailCustomer = customerRes.data || {}
+              })
+              .catch(() => {
+                this.detailCustomer = {}
+              })
+          )
+        }
+        if (order.roomId) {
+          requests.push(
+            getRoomDetail(order.roomId)
+              .then(roomRes => {
+                this.detailRoom = roomRes.data || {}
+              })
+              .catch(() => {
+                this.detailRoom = {}
+              })
+          )
+        }
+        if (requests.length) {
+          await Promise.all(requests)
+        }
       } finally {
         this.detailLoading = false
       }
@@ -403,6 +465,42 @@ export default {
     },
     orderStatusLabel(value) {
       return getOrderStatusLabel(value)
+    },
+    genderLabel(value) {
+      return getGenderLabel(value)
+    },
+    enableStatusLabel(value) {
+      return getEnableStatusLabel(value)
+    },
+    formatDateTime(value) {
+      if (!value) {
+        return '-'
+      }
+      return String(value).replace('T', ' ')
+    },
+    formatAmount(value) {
+      if (value === undefined || value === null || value === '') {
+        return '-'
+      }
+      const num = Number(value)
+      if (Number.isNaN(num)) {
+        return value
+      }
+      return num.toFixed(2)
+    },
+    stayNights(order) {
+      const inDate = order?.checkInDate
+      const outDate = order?.checkOutDate
+      if (!inDate || !outDate) {
+        return '-'
+      }
+      const start = new Date(`${inDate}T00:00:00`).getTime()
+      const end = new Date(`${outDate}T00:00:00`).getTime()
+      if (!start || !end || end <= start) {
+        return '-'
+      }
+      const dayMs = 24 * 60 * 60 * 1000
+      return Math.round((end - start) / dayMs)
     },
     runActionWithConfirm({ row, action, actionName, successText }) {
       this.$confirm(`确认对订单【${row.orderNumber}】执行${actionName}吗？`, '提示', { type: 'warning' })
