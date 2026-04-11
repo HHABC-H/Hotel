@@ -2,8 +2,8 @@
   <div class="app-container">
     <el-card shadow="never">
       <div slot="header" class="header-row">
-        <span>用户管理</span>
-        <el-button type="primary" size="mini" @click="openCreateDialog">新增用户</el-button>
+        <span>员工管理</span>
+        <el-button type="primary" size="mini" @click="openCreateDialog">新增员工</el-button>
       </div>
 
       <el-form :inline="true" :model="query" class="filter-form">
@@ -29,7 +29,7 @@
 
       <el-table v-loading="loading" :data="tableData" border>
         <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="username" label="用户名" min-width="120" />
+        <el-table-column prop="username" label="账号" min-width="120" />
         <el-table-column prop="realName" label="姓名" min-width="120" />
         <el-table-column prop="phone" label="手机号" min-width="130" />
         <el-table-column label="余额" min-width="110">
@@ -72,7 +72,7 @@
       </div>
     </el-card>
 
-    <el-dialog :title="isEdit ? '编辑用户' : '新增用户'" :visible.sync="dialogVisible" width="560px" @closed="handleDialogClosed">
+    <el-dialog :title="isEdit ? '编辑员工' : '新增员工'" :visible.sync="dialogVisible" width="560px" @closed="handleDialogClosed">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" :disabled="isEdit" />
@@ -135,7 +135,7 @@ const createDefaultForm = () => ({
 })
 
 export default {
-  name: 'SystemUserIndex',
+  name: 'SystemStaffIndex',
   data() {
     const validatePhone = (rule, value, callback) => {
       if (!value) {
@@ -185,7 +185,7 @@ export default {
       dialogVisible: false,
       isEdit: false,
       form: createDefaultForm(),
-      roleOptions: ROLE_OPTIONS,
+      roleOptions: ROLE_OPTIONS.filter(item => ['ADMIN', 'RECEPTIONIST'].includes(item.value)),
       rules: {
         username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
         password: [{ required: true, trigger: 'blur', validator: validatePassword }],
@@ -215,8 +215,9 @@ export default {
       listUsers(this.query)
         .then(res => {
           const { records, total } = this.normalizePageData(res.data)
-          this.tableData = records
-          this.total = total
+          const filtered = records.filter(item => ['ADMIN', 'RECEPTIONIST'].includes(item.role))
+          this.tableData = filtered
+          this.total = this.query.role ? total : filtered.length
         })
         .finally(() => {
           this.loading = false
@@ -296,7 +297,7 @@ export default {
         }
 
         if (!this.isEdit && !this.form.password) {
-          this.$message.warning('新增用户必须填写密码')
+          this.$message.warning('新增员工必须填写密码')
           return
         }
 
@@ -329,7 +330,7 @@ export default {
         .catch(() => {})
     },
     handleDelete(row) {
-      this.$confirm(`确认删除用户【${row.username}】吗？`, '提示', { type: 'warning' })
+      this.$confirm(`确认删除员工【${row.username}】吗？`, '提示', { type: 'warning' })
         .then(() => deleteUser(row.id))
         .then(() => {
           this.$message.success('删除成功')

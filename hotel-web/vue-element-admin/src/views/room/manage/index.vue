@@ -37,8 +37,8 @@
         <el-table-column prop="createTime" label="创建时间" min-width="170" />
         <el-table-column v-if="canManage" label="操作" min-width="260" fixed="right">
           <template slot-scope="scope">
-            <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
-            <el-dropdown @command="(status) => handleStatusChange(scope.row, status)">
+            <el-button type="text" class="op-btn" @click="openEditDialog(scope.row)">编辑</el-button>
+            <el-dropdown class="op-btn" @command="(status) => handleStatusChange(scope.row, status)">
               <el-button type="text">改状态<i class="el-icon-arrow-down el-icon--right" /></el-button>
               <el-dropdown-menu slot="dropdown">
                 <el-dropdown-item
@@ -290,5 +290,9 @@ export default {
 
 .danger-btn {
   color: #f56c6c;
+}
+
+.op-btn {
+  margin-right: 10px;
 }
 </style>

@@ -118,35 +118,17 @@ export const asyncRoutes = [
     ]
   },
   {
-    path: '/customer',
-    component: Layout,
-    children: [
-      {
-        path: 'manage',
-        component: () => import('@/views/customer/manage/index'),
-        name: 'CustomerManage',
-        meta: { title: '客户管理', icon: 'el-icon-user-solid', roles: ['ADMIN', 'RECEPTIONIST'] }
-      }
-    ]
-  },
-  {
     path: '/system',
     component: Layout,
-    redirect: '/system/users',
+    redirect: '/system/staff',
     name: 'System',
     meta: { title: '系统管理', icon: 'el-icon-setting', roles: ['ADMIN'] },
     children: [
       {
-        path: 'users',
+        path: 'staff',
         component: () => import('@/views/system/user/index'),
-        name: 'SystemUsers',
-        meta: { title: '用户管理', icon: 'el-icon-user', roles: ['ADMIN'] }
-      },
-      {
-        path: 'settings',
-        component: () => import('@/views/system/settings/index'),
-        name: 'SystemSettings',
-        meta: { title: '系统设置', icon: 'el-icon-s-tools', roles: ['ADMIN'] }
+        name: 'SystemStaff',
+        meta: { title: '员工管理', icon: 'el-icon-user', roles: ['ADMIN'] }
       }
     ]
   },
