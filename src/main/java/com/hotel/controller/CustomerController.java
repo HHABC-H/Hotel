@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -88,6 +89,11 @@ public class CustomerController {
         user.setGender(StringUtils.hasText(request.getGender()) ? request.getGender() : "UNKNOWN");
         user.setRole(Constant.CLIENT_ROLE);
         user.setStatus(request.getStatus() == null ? Constant.STATUS_ENABLE : request.getStatus());
+        BigDecimal initialBalance = normalizeBalance(request.getBalance());
+        if (initialBalance.compareTo(BigDecimal.ZERO) < 0) {
+            return Result.error(400, "余额不能为负数");
+        }
+        user.setBalance(initialBalance);
 
         boolean saved = userService.save(user);
         user.setPassword(null);
@@ -125,6 +131,13 @@ public class CustomerController {
         if (StringUtils.hasText(request.getPassword())) {
             user.setPassword(md5(request.getPassword()));
         }
+        if (request.getBalance() != null) {
+            BigDecimal balance = normalizeBalance(request.getBalance());
+            if (balance.compareTo(BigDecimal.ZERO) < 0) {
+                return Result.error(400, "余额不能为负数");
+            }
+            user.setBalance(balance);
+        }
 
         boolean updated = userService.updateById(user);
         user.setPassword(null);
@@ -144,6 +157,10 @@ public class CustomerController {
         return DigestUtils.md5DigestAsHex(input.getBytes(StandardCharsets.UTF_8));
     }
 
+    private BigDecimal normalizeBalance(BigDecimal balance) {
+        return balance == null ? BigDecimal.ZERO : balance;
+    }
+
     @Data
     public static class SaveCustomerRequest {
         private String username;
@@ -153,6 +170,7 @@ public class CustomerController {
         private String idCard;
         private String gender;
         private Integer status;
+        private BigDecimal balance;
     }
 
     @Data
@@ -163,5 +181,6 @@ public class CustomerController {
         private String idCard;
         private String gender;
         private Integer status;
+        private BigDecimal balance;
     }
 }

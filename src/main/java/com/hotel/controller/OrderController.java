@@ -19,6 +19,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -158,9 +159,24 @@ public class OrderController {
             return Result.error(400, "只有未支付订单可支付");
         }
 
+        User customer = userService.getById(order.getCustomerId());
+        if (customer == null || !Constant.CLIENT_ROLE.equals(customer.getRole())) {
+            return Result.error(404, "客户不存在");
+        }
+        if (safeBalance(customer).compareTo(order.getTotalAmount()) < 0) {
+            return Result.error(400, "余额不足，请先充值");
+        }
+        if (!deductBalance(customer.getId(), order.getTotalAmount())) {
+            return Result.error(400, "余额不足，请先充值");
+        }
+
         order.setStatus(Constant.ORDER_STATUS_PAID);
         boolean updated = orderService.updateById(order);
-        return updated ? Result.success(order) : Result.error("订单支付失败");
+        if (!updated) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return Result.error("订单支付失败");
+        }
+        return Result.success(order);
     }
 
     @PutMapping("/{id}/check-in")
@@ -293,6 +309,18 @@ public class OrderController {
 
     private String generateOrderNumber() {
         return "OD" + System.currentTimeMillis() + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
+    }
+
+    private BigDecimal safeBalance(User user) {
+        return user.getBalance() == null ? BigDecimal.ZERO : user.getBalance();
+    }
+
+    private boolean deductBalance(Long userId, BigDecimal amount) {
+        return userService.lambdaUpdate()
+                .eq(User::getId, userId)
+                .ge(User::getBalance, amount)
+                .setSql("balance = balance - " + amount.toPlainString())
+                .update();
     }
 
     @Data

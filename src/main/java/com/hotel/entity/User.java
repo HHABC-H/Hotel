@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -31,6 +32,8 @@ public class User {
     private String role;
 
     private Integer status;
+
+    private BigDecimal balance;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

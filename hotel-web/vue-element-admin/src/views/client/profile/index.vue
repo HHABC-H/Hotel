@@ -10,6 +10,9 @@
         <el-form-item label="角色">
           <el-input :value="roleLabel(form.roleCode)" disabled />
         </el-form-item>
+        <el-form-item label="账户余额">
+          <el-input :value="formatCurrency(form.balance)" disabled />
+        </el-form-item>
         <el-form-item label="真实姓名" prop="realName">
           <el-input v-model="form.realName" />
         </el-form-item>
@@ -70,6 +73,7 @@ export default {
       form: {
         username: '',
         roleCode: '',
+        balance: 0,
         realName: '',
         phone: '',
         idCard: '',
@@ -93,6 +97,7 @@ export default {
         this.form = {
           username: data.username || '',
           roleCode: data.role || '',
+          balance: Number(data.balance || 0),
           realName: data.realName || '',
           phone: data.phone || '',
           idCard: data.idCard || '',
@@ -126,6 +131,9 @@ export default {
     },
     roleLabel(value) {
       return getRoleLabel(value)
+    },
+    formatCurrency(value) {
+      return `¥${Number(value || 0).toFixed(2)}`
     }
   }
 }

@@ -32,6 +32,11 @@
         <el-table-column prop="username" label="用户名" min-width="120" />
         <el-table-column prop="realName" label="姓名" min-width="120" />
         <el-table-column prop="phone" label="手机号" min-width="130" />
+        <el-table-column label="余额" min-width="110">
+          <template slot-scope="scope">
+            {{ formatCurrency(scope.row.balance) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="idCard" label="身份证号" min-width="170" />
         <el-table-column label="角色" width="130">
           <template slot-scope="scope">
@@ -81,6 +86,9 @@
         <el-form-item label="手机号" prop="phone">
           <el-input v-model="form.phone" />
         </el-form-item>
+        <el-form-item label="账户余额" prop="balance">
+          <el-input-number v-model="form.balance" :min="0" :precision="2" :step="100" controls-position="right" style="width: 100%;" />
+        </el-form-item>
         <el-form-item label="身份证号" prop="idCard">
           <el-input v-model="form.idCard" />
         </el-form-item>
@@ -119,6 +127,7 @@ const createDefaultForm = () => ({
   password: '',
   realName: '',
   phone: '',
+  balance: 0,
   idCard: '',
   gender: 'UNKNOWN',
   role: 'RECEPTIONIST',
@@ -251,6 +260,7 @@ export default {
           password: '',
           realName: data.realName || '',
           phone: data.phone || '',
+          balance: Number(data.balance || 0),
           idCard: data.idCard || '',
           gender: data.gender || 'UNKNOWN',
           role: data.role || 'RECEPTIONIST',
@@ -268,6 +278,7 @@ export default {
         username: this.form.username,
         realName: this.form.realName,
         phone: this.form.phone,
+        balance: Number(this.form.balance || 0),
         idCard: this.form.idCard || null,
         gender: this.form.gender,
         role: this.form.role,
@@ -328,6 +339,9 @@ export default {
     },
     roleLabel(value) {
       return getRoleLabel(value)
+    },
+    formatCurrency(value) {
+      return `¥${Number(value || 0).toFixed(2)}`
     }
   }
 }

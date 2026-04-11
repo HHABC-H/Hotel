@@ -87,6 +87,7 @@ public class ProfileController {
         profile.put("gender", user.getGender());
         profile.put("role", user.getRole());
         profile.put("status", user.getStatus());
+        profile.put("balance", user.getBalance());
         return profile;
     }
 

@@ -123,7 +123,8 @@ export default {
         roomId: undefined,
         checkInDate: '',
         checkOutDate: '',
-        totalAmount: ''
+        totalAmount: '',
+        status: ''
       },
       bookingRules: {
         checkInDate: [{ required: true, message: '请选择入住日期', trigger: 'change' }],
@@ -203,7 +204,8 @@ export default {
         roomId: payload.roomId || this.bookingForm.roomId,
         checkInDate: payload.checkInDate || this.bookingForm.checkInDate,
         checkOutDate: payload.checkOutDate || this.bookingForm.checkOutDate,
-        totalAmount: payload.totalAmount || ''
+        totalAmount: payload.totalAmount || '',
+        status: payload.status || ''
       }
     },
     async resolveOrderByMyOrders() {
@@ -211,10 +213,7 @@ export default {
       const records = this.normalizeListData(res.data)
 
       const exact = records.find(item => {
-        const status = item.status
-        const unpaid = status === 'UNPAID' || status === '待支付'
-        return unpaid &&
-          Number(item.roomId) === Number(this.bookingForm.roomId) &&
+        return Number(item.roomId) === Number(this.bookingForm.roomId) &&
           item.checkInDate === this.bookingForm.checkInDate &&
           item.checkOutDate === this.bookingForm.checkOutDate
       })
@@ -228,7 +227,8 @@ export default {
         roomId: target.roomId || this.bookingForm.roomId,
         checkInDate: target.checkInDate || this.bookingForm.checkInDate,
         checkOutDate: target.checkOutDate || this.bookingForm.checkOutDate,
-        totalAmount: target.totalAmount || ''
+        totalAmount: target.totalAmount || '',
+        status: target.status || ''
       }
     },
     handleConfirmBooking() {
@@ -244,14 +244,20 @@ export default {
         this.bookingSubmitting = true
         try {
           const res = await createBooking(this.bookingForm)
-          this.$message.success('预订成功')
-          this.bookingDialogVisible = false
 
           let orderInfo = this.extractOrderFromBookingResponse(res.data)
-          if (!orderInfo.orderId) {
+          if (!orderInfo.orderId || !orderInfo.status) {
             orderInfo = await this.resolveOrderByMyOrders()
           }
+          this.bookingDialogVisible = false
           this.payContext = orderInfo
+          if (orderInfo.status === 'PAID' || orderInfo.status === '已支付') {
+            this.$message.success('预订并支付成功')
+            this.searchMode = 'available'
+            this.fetchData()
+            return
+          }
+          this.$message.success('预订成功')
           this.payDialogVisible = true
         } finally {
           this.bookingSubmitting = false

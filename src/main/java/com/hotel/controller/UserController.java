@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -82,6 +83,10 @@ public class UserController {
         if (user.getStatus() == null) {
             user.setStatus(Constant.STATUS_ENABLE);
         }
+        user.setBalance(normalizeBalance(user.getBalance()));
+        if (user.getBalance().compareTo(BigDecimal.ZERO) < 0) {
+            return Result.error(400, "余额不能为负数");
+        }
 
         boolean saved = userService.save(user);
         if (!saved) {
@@ -132,6 +137,12 @@ public class UserController {
         if (StringUtils.hasText(payload.getPassword())) {
             user.setPassword(md5(payload.getPassword()));
         }
+        if (payload.getBalance() != null) {
+            if (payload.getBalance().compareTo(BigDecimal.ZERO) < 0) {
+                return Result.error(400, "余额不能为负数");
+            }
+            user.setBalance(payload.getBalance());
+        }
 
         userService.updateById(user);
         sanitizePassword(user);
@@ -158,6 +169,10 @@ public class UserController {
 
     private String md5(String input) {
         return DigestUtils.md5DigestAsHex(input.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private BigDecimal normalizeBalance(BigDecimal balance) {
+        return balance == null ? BigDecimal.ZERO : balance;
     }
 
     private void sanitizePassword(User user) {
