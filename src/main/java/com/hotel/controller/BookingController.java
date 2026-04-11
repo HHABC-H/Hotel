@@ -163,8 +163,13 @@ public class BookingController {
         if (Constant.ORDER_STATUS_COMPLETED.equals(order.getStatus())) {
             return Result.error(400, "Completed order cannot be cancelled");
         }
-        if (!Constant.ORDER_STATUS_UNPAID.equals(order.getStatus())) {
-            return Result.error(400, "Only unpaid orders can be cancelled online");
+        if (!Constant.ORDER_STATUS_UNPAID.equals(order.getStatus())
+                && !Constant.ORDER_STATUS_PAID.equals(order.getStatus())) {
+            return Result.error(400, "Only unpaid or paid orders can be cancelled online");
+        }
+        LocalDate today = LocalDate.now();
+        if (today.isAfter(order.getCheckOutDate())) {
+            return Result.error(400, "Booking time has passed, cancellation is not allowed");
         }
 
         Room room = roomService.getById(order.getRoomId());
