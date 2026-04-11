@@ -151,6 +151,18 @@ export const asyncRoutes = [
     ]
   },
   {
+    path: '/staff',
+    component: Layout,
+    children: [
+      {
+        path: 'profile',
+        component: () => import('@/views/client/profile/index'),
+        name: 'StaffProfile',
+        meta: { title: '个人中心', icon: 'el-icon-user', roles: ['ADMIN', 'RECEPTIONIST'] }
+      }
+    ]
+  },
+  {
     path: '/client',
     component: Layout,
     redirect: '/client/order-create',

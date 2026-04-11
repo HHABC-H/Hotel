@@ -226,6 +226,85 @@ public class OrderController {
         return Result.success(order);
     }
 
+    @PutMapping("/{id}/renew")
+    @Transactional
+    public Result<Order> renew(@PathVariable Long id, @RequestBody RenewOrderRequest request) {
+        AuthUser current = SecurityUtils.getCurrentUser();
+        if (current == null) {
+            return Result.error(401, "Unauthorized");
+        }
+        if (request == null || request.getCheckOutDate() == null) {
+            return Result.error(400, "New check-out date is required");
+        }
+
+        Order order = orderService.getById(id);
+        if (order == null) {
+            return Result.error(404, "Order not found");
+        }
+
+        boolean isClient = Constant.CLIENT_ROLE.equals(current.getRole());
+        if (isClient && !current.getUserId().equals(order.getCustomerId())) {
+            return Result.error(403, "No permission");
+        }
+
+        if (!Constant.ORDER_STATUS_UNPAID.equals(order.getStatus())
+                && !Constant.ORDER_STATUS_PAID.equals(order.getStatus())) {
+            return Result.error(400, "Only unpaid or paid orders can be renewed");
+        }
+        if (!request.getCheckOutDate().isAfter(order.getCheckOutDate())) {
+            return Result.error(400, "New check-out date must be later than current check-out date");
+        }
+
+        Room room = roomService.getById(order.getRoomId());
+        if (room == null) {
+            return Result.error(404, "Room not found");
+        }
+        RoomType roomType = roomTypeService.getById(room.getRoomTypeId());
+        if (roomType == null || roomType.getPrice() == null) {
+            return Result.error(400, "Room type price is not configured");
+        }
+
+        boolean overlap = orderService.lambdaQuery()
+                .eq(Order::getRoomId, order.getRoomId())
+                .in(Order::getStatus, Arrays.asList(Constant.ORDER_STATUS_UNPAID, Constant.ORDER_STATUS_PAID))
+                .ne(Order::getId, id)
+                .lt(Order::getCheckInDate, request.getCheckOutDate())
+                .gt(Order::getCheckOutDate, order.getCheckInDate())
+                .exists();
+        if (overlap) {
+            return Result.error(400, "Room already booked for the renewed period");
+        }
+
+        long days = ChronoUnit.DAYS.between(order.getCheckInDate(), request.getCheckOutDate());
+        BigDecimal newTotal = roomType.getPrice().multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal oldTotal = order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount();
+
+        if (Constant.ORDER_STATUS_PAID.equals(order.getStatus())) {
+            BigDecimal extraAmount = newTotal.subtract(oldTotal).setScale(2, RoundingMode.HALF_UP);
+            if (extraAmount.compareTo(BigDecimal.ZERO) > 0) {
+                User customer = userService.getById(order.getCustomerId());
+                if (customer == null) {
+                    return Result.error(404, "Customer not found");
+                }
+                if (safeBalance(customer).compareTo(extraAmount) < 0) {
+                    return Result.error(400, "Insufficient balance for renewal");
+                }
+                if (!deductBalance(customer.getId(), extraAmount)) {
+                    return Result.error(400, "Insufficient balance for renewal");
+                }
+            }
+        }
+
+        order.setCheckOutDate(request.getCheckOutDate());
+        order.setTotalAmount(newTotal);
+        boolean updated = orderService.updateById(order);
+        if (!updated) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return Result.error("Renew order failed");
+        }
+        return Result.success(order);
+    }
+
     @GetMapping("/my")
     public Result<List<Order>> myOrders() {
         AuthUser current = SecurityUtils.getCurrentUser();
@@ -321,6 +400,12 @@ public class OrderController {
                 .ge(User::getBalance, amount)
                 .setSql("balance = balance - " + amount.toPlainString())
                 .update();
+    }
+
+    @Data
+    public static class RenewOrderRequest {
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        private LocalDate checkOutDate;
     }
 
     @Data

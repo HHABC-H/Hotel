@@ -59,6 +59,14 @@ export function checkOutOrder(id) {
   })
 }
 
+export function renewOrder(id, data) {
+  return request({
+    url: `/orders/${id}/renew`,
+    method: 'put',
+    data
+  })
+}
+
 export function listMyOrders(params) {
   return request({
     url: '/orders/my',

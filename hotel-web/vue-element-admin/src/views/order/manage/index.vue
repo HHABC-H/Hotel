@@ -34,11 +34,12 @@
             {{ orderStatusLabel(scope.row.status) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="420" fixed="right">
+        <el-table-column label="操作" min-width="470" fixed="right">
           <template slot-scope="scope">
             <el-button type="text" @click="openDetailDialog(scope.row)">详情</el-button>
             <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
             <el-button type="text" :disabled="!canPay(scope.row)" @click="handlePay(scope.row)">支付</el-button>
+            <el-button type="text" :disabled="!canRenew(scope.row)" @click="openRenewDialog(scope.row)">续房</el-button>
             <el-button type="text" :disabled="!canCheckIn(scope.row)" @click="handleCheckIn(scope.row)">入住</el-button>
             <el-button type="text" :disabled="!canCheckOut(scope.row)" @click="handleCheckOut(scope.row)">退房</el-button>
             <el-button type="text" class="danger-btn" :disabled="!canCancel(scope.row)" @click="handleCancel(scope.row)">取消</el-button>
@@ -177,6 +178,27 @@
         <el-button type="primary" @click="detailDialogVisible = false">关闭</el-button>
       </span>
     </el-dialog>
+
+    <el-dialog title="续房" :visible.sync="renewDialogVisible" width="420px" @closed="handleRenewDialogClosed">
+      <el-form label-width="100px">
+        <el-form-item label="当前退房日">
+          <el-input :value="renewTarget?.checkOutDate || '-'" disabled />
+        </el-form-item>
+        <el-form-item label="新退房日期">
+          <el-date-picker
+            v-model="renewForm.checkOutDate"
+            type="date"
+            value-format="yyyy-MM-dd"
+            placeholder="请选择新退房日期"
+            style="width: 100%;"
+          />
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="renewDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="renewSubmitting" @click="handleRenewSubmit">确定续房</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -187,6 +209,7 @@ import {
   createOrder,
   updateOrder,
   payOrder,
+  renewOrder,
   checkInOrder,
   checkOutOrder,
   cancelOrder
@@ -231,6 +254,12 @@ export default {
       detailData: {},
       detailCustomer: {},
       detailRoom: {},
+      renewDialogVisible: false,
+      renewSubmitting: false,
+      renewTarget: null,
+      renewForm: {
+        checkOutDate: ''
+      },
       rules: {
         customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
         roomId: [{ required: true, message: '请选择房间', trigger: 'change' }],
@@ -451,6 +480,9 @@ export default {
     canPay(row) {
       return row.status === 'UNPAID'
     },
+    canRenew(row) {
+      return row.status === 'UNPAID' || row.status === 'PAID'
+    },
     canCheckIn(row) {
       return row.status === 'PAID'
     },
@@ -534,6 +566,41 @@ export default {
         return
       }
       this.runActionWithConfirm({ row, action: cancelOrder, actionName: '取消', successText: '订单已取消' })
+    },
+    openRenewDialog(row) {
+      if (!this.canRenew(row)) {
+        return
+      }
+      this.renewTarget = row
+      this.renewForm = { checkOutDate: '' }
+      this.renewDialogVisible = true
+    },
+    handleRenewDialogClosed() {
+      this.renewSubmitting = false
+      this.renewTarget = null
+      this.renewForm = { checkOutDate: '' }
+    },
+    async handleRenewSubmit() {
+      if (!this.renewTarget || !this.renewTarget.id) {
+        return
+      }
+      if (!this.renewForm.checkOutDate) {
+        this.$message.warning('请选择新退房日期')
+        return
+      }
+      if (this.renewForm.checkOutDate <= this.renewTarget.checkOutDate) {
+        this.$message.warning('新退房日期必须晚于当前退房日期')
+        return
+      }
+      this.renewSubmitting = true
+      try {
+        await renewOrder(this.renewTarget.id, { checkOutDate: this.renewForm.checkOutDate })
+        this.$message.success('续房成功')
+        this.renewDialogVisible = false
+        await this.fetchData()
+      } finally {
+        this.renewSubmitting = false
+      }
     }
   }
 }

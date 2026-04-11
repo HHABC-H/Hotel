@@ -15,17 +15,24 @@
             {{ orderStatusLabel(scope.row.status) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template slot-scope="scope">
+            <el-button
+              v-if="canRenewOrder(scope.row)"
+              type="text"
+              :loading="renewingOrderId === scope.row.id"
+              @click="openRenewDialog(scope.row)"
+            >
+              续房
+            </el-button>
             <el-button
               v-if="canCancelOrder(scope.row)"
               type="text"
               :loading="cancelingOrderId === scope.row.id"
               @click="handleCancelOrder(scope.row)"
             >
-              取消订单
+              取消
             </el-button>
-            <span v-else>-</span>
           </template>
         </el-table-column>
       </el-table>
@@ -34,11 +41,32 @@
         <el-button type="primary" @click="fetchData">刷新</el-button>
       </div>
     </el-card>
+
+    <el-dialog title="续房" :visible.sync="renewDialogVisible" width="420px" @closed="handleRenewDialogClosed">
+      <el-form label-width="100px">
+        <el-form-item label="当前退房日">
+          <el-input :value="renewTarget?.checkOutDate || '-'" disabled />
+        </el-form-item>
+        <el-form-item label="新退房日期">
+          <el-date-picker
+            v-model="renewForm.checkOutDate"
+            type="date"
+            value-format="yyyy-MM-dd"
+            placeholder="请选择新退房日期"
+            style="width: 100%;"
+          />
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="renewDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="renewSubmitting" @click="handleRenewSubmit">确定续房</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listMyOrders } from '@/api/orders'
+import { listMyOrders, renewOrder } from '@/api/orders'
 import { cancelBooking } from '@/api/bookings'
 import { getOrderStatusLabel } from '@/constants/dict'
 
@@ -48,6 +76,13 @@ export default {
     return {
       loading: false,
       cancelingOrderId: null,
+      renewingOrderId: null,
+      renewDialogVisible: false,
+      renewSubmitting: false,
+      renewTarget: null,
+      renewForm: {
+        checkOutDate: ''
+      },
       tableData: []
     }
   },
@@ -106,6 +141,48 @@ export default {
         return false
       }
       return this.isDateCancelable(row.checkOutDate)
+    },
+    canRenewOrder(row) {
+      if (!row) {
+        return false
+      }
+      const status = this.normalizeOrderStatus(row.status)
+      return ['UNPAID', 'PAID'].includes(status)
+    },
+    openRenewDialog(row) {
+      this.renewTarget = row
+      this.renewForm = { checkOutDate: '' }
+      this.renewDialogVisible = true
+    },
+    handleRenewDialogClosed() {
+      this.renewSubmitting = false
+      this.renewTarget = null
+      this.renewForm = { checkOutDate: '' }
+    },
+    async handleRenewSubmit() {
+      if (!this.renewTarget || !this.renewTarget.id) {
+        return
+      }
+      if (!this.renewForm.checkOutDate) {
+        this.$message.warning('请选择新退房日期')
+        return
+      }
+      if (this.renewForm.checkOutDate <= this.renewTarget.checkOutDate) {
+        this.$message.warning('新退房日期必须晚于当前退房日期')
+        return
+      }
+
+      this.renewSubmitting = true
+      this.renewingOrderId = this.renewTarget.id
+      try {
+        await renewOrder(this.renewTarget.id, { checkOutDate: this.renewForm.checkOutDate })
+        this.$message.success('续房成功')
+        this.renewDialogVisible = false
+        await this.fetchData()
+      } finally {
+        this.renewSubmitting = false
+        this.renewingOrderId = null
+      }
     },
     async handleCancelOrder(row) {
       if (!row || !row.id) {
