@@ -69,8 +69,29 @@ export default {
     orderStatusLabel(value) {
       return getOrderStatusLabel(value)
     },
+    normalizeOrderStatus(value) {
+      const raw = String(value || '').trim()
+      const upper = raw.toUpperCase()
+
+      if (['UNPAID', 'WAIT_PAY', 'PENDING_PAYMENT', 'TO_PAY'].includes(upper) || raw === '待支付') {
+        return 'UNPAID'
+      }
+      if (['PAID'].includes(upper) || raw === '已支付') {
+        return 'PAID'
+      }
+      if (['CANCELLED', 'CANCELED'].includes(upper) || raw === '已取消') {
+        return 'CANCELLED'
+      }
+      if (['COMPLETED', 'FINISHED', 'DONE'].includes(upper) || raw === '已完成') {
+        return 'COMPLETED'
+      }
+      return upper || raw
+    },
     canCancelOrder(row) {
-      return row && row.status === 'UNPAID'
+      if (!row) {
+        return false
+      }
+      return this.normalizeOrderStatus(row.status) === 'UNPAID'
     },
     async handleCancelOrder(row) {
       if (!row || !row.id) {
