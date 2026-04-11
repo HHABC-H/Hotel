@@ -33,8 +33,9 @@
         <el-table-column prop="checkOutDate" label="退房日期" min-width="120" />
         <el-table-column prop="totalAmount" label="总金额" min-width="100" />
         <el-table-column prop="status" label="状态" min-width="110" />
-        <el-table-column label="操作" min-width="360" fixed="right">
+        <el-table-column label="操作" min-width="420" fixed="right">
           <template slot-scope="scope">
+            <el-button type="text" @click="openDetailDialog(scope.row)">详情</el-button>
             <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
             <el-button type="text" :disabled="!canPay(scope.row)" @click="handlePay(scope.row)">支付</el-button>
             <el-button type="text" :disabled="!canCheckIn(scope.row)" @click="handleCheckIn(scope.row)">入住</el-button>
@@ -60,17 +61,60 @@
 
     <el-dialog :title="isEdit ? '编辑订单' : '新增订单'" :visible.sync="dialogVisible" width="560px" @closed="handleDialogClosed">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="客户ID" prop="customerId">
-          <el-input-number v-model="form.customerId" :min="1" controls-position="right" />
-        </el-form-item>
-        <el-form-item label="房间ID" prop="roomId">
-          <el-input-number v-model="form.roomId" :min="1" controls-position="right" />
+        <el-form-item label="客户" prop="customerId">
+          <el-select
+            v-model="form.customerId"
+            placeholder="请选择客户"
+            filterable
+            clearable
+            :loading="customerLoading"
+            style="width: 100%;"
+          >
+            <el-option
+              v-for="item in customerOptions"
+              :key="item.id"
+              :label="`${item.realName || item.username}（${item.phone || '无手机号'}）`"
+              :value="item.id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="入住日期" prop="checkInDate">
-          <el-date-picker v-model="form.checkInDate" type="date" value-format="yyyy-MM-dd" placeholder="请选择入住日期" />
+          <el-date-picker
+            v-model="form.checkInDate"
+            type="date"
+            value-format="yyyy-MM-dd"
+            placeholder="请选择入住日期"
+            style="width: 100%;"
+            @change="handleDialogDateChange"
+          />
         </el-form-item>
         <el-form-item label="退房日期" prop="checkOutDate">
-          <el-date-picker v-model="form.checkOutDate" type="date" value-format="yyyy-MM-dd" placeholder="请选择退房日期" />
+          <el-date-picker
+            v-model="form.checkOutDate"
+            type="date"
+            value-format="yyyy-MM-dd"
+            placeholder="请选择退房日期"
+            style="width: 100%;"
+            @change="handleDialogDateChange"
+          />
+        </el-form-item>
+        <el-form-item label="房间" prop="roomId">
+          <el-select
+            v-model="form.roomId"
+            placeholder="请选择房间"
+            filterable
+            clearable
+            :loading="roomLoading"
+            :disabled="!canLoadRooms"
+            style="width: 100%;"
+          >
+            <el-option
+              v-for="item in roomOptions"
+              :key="item.id"
+              :label="`#${item.roomNumber}（${item.status || 'AVAILABLE'}）`"
+              :value="item.id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="3" />
@@ -79,6 +123,27 @@
       <span slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="订单详情" :visible.sync="detailDialogVisible" width="700px">
+      <el-skeleton v-if="detailLoading" :rows="8" animated />
+      <el-descriptions v-else :column="2" border>
+        <el-descriptions-item label="订单ID">{{ detailData.id || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="订单号">{{ detailData.orderNumber || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="客户ID">{{ detailData.customerId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="房间ID">{{ detailData.roomId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="入住日期">{{ detailData.checkInDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="退房日期">{{ detailData.checkOutDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="总金额">{{ detailData.totalAmount || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ detailData.status || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="创建人ID">{{ detailData.createUserId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ detailData.createTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ detailData.updateTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ detailData.remark || '-' }}</el-descriptions-item>
+      </el-descriptions>
+      <span slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="detailDialogVisible = false">关闭</el-button>
       </span>
     </el-dialog>
   </div>
@@ -95,11 +160,13 @@ import {
   checkOutOrder,
   cancelOrder
 } from '@/api/orders'
+import { listCustomers } from '@/api/customers'
+import { listAvailableRooms, getRoomDetail } from '@/api/rooms'
 
 const createDefaultForm = () => ({
   id: null,
-  customerId: 1,
-  roomId: 1,
+  customerId: undefined,
+  roomId: undefined,
   checkInDate: '',
   checkOutDate: '',
   remark: ''
@@ -121,13 +188,25 @@ export default {
       },
       dialogVisible: false,
       isEdit: false,
+      customerLoading: false,
+      roomLoading: false,
+      customerOptions: [],
+      roomOptions: [],
       form: createDefaultForm(),
+      detailDialogVisible: false,
+      detailLoading: false,
+      detailData: {},
       rules: {
-        customerId: [{ required: true, message: '请输入客户ID', trigger: 'change' }],
-        roomId: [{ required: true, message: '请输入房间ID', trigger: 'change' }],
+        customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
+        roomId: [{ required: true, message: '请选择房间', trigger: 'change' }],
         checkInDate: [{ required: true, message: '请选择入住日期', trigger: 'change' }],
         checkOutDate: [{ required: true, message: '请选择退房日期', trigger: 'change' }]
       }
+    }
+  },
+  computed: {
+    canLoadRooms() {
+      return !!this.form.checkInDate && !!this.form.checkOutDate
     }
   },
   created() {
@@ -142,6 +221,12 @@ export default {
         records: data?.records || [],
         total: Number(data?.total || 0)
       }
+    },
+    normalizeListData(data) {
+      if (Array.isArray(data)) {
+        return data
+      }
+      return data?.records || []
     },
     fetchData() {
       this.loading = true
@@ -177,25 +262,87 @@ export default {
       this.query.pageNum = page
       this.fetchData()
     },
-    openCreateDialog() {
+    fetchCustomerOptions() {
+      this.customerLoading = true
+      return listCustomers({ pageNum: 1, pageSize: 500, keyword: '' })
+        .then(res => {
+          this.customerOptions = this.normalizeListData(res.data)
+        })
+        .finally(() => {
+          this.customerLoading = false
+        })
+    },
+    async fetchRoomOptions(keepRoomId) {
+      if (!this.canLoadRooms) {
+        this.roomOptions = []
+        return
+      }
+      if (this.form.checkInDate >= this.form.checkOutDate) {
+        this.roomOptions = []
+        this.form.roomId = undefined
+        return
+      }
+
+      const params = {
+        checkInDate: this.form.checkInDate,
+        checkOutDate: this.form.checkOutDate
+      }
+
+      this.roomLoading = true
+      try {
+        const res = await listAvailableRooms(params)
+        const records = this.normalizeListData(res.data)
+        this.roomOptions = records
+
+        if (keepRoomId && !this.roomOptions.some(item => item.id === keepRoomId)) {
+          const detailRes = await getRoomDetail(keepRoomId)
+          if (detailRes?.data?.id) {
+            this.roomOptions.unshift(detailRes.data)
+          }
+        }
+
+        if (!this.roomOptions.some(item => item.id === this.form.roomId)) {
+          this.form.roomId = undefined
+        }
+      } finally {
+        this.roomLoading = false
+      }
+    },
+    async openCreateDialog() {
       this.isEdit = false
       this.form = createDefaultForm()
+      this.roomOptions = []
       this.dialogVisible = true
+      await this.fetchCustomerOptions()
     },
-    openEditDialog(row) {
+    async openEditDialog(row) {
       this.isEdit = true
-      getOrderDetail(row.id).then(res => {
-        const data = res.data || row
-        this.form = {
-          id: data.id,
-          customerId: Number(data.customerId || 1),
-          roomId: Number(data.roomId || 1),
-          checkInDate: data.checkInDate || '',
-          checkOutDate: data.checkOutDate || '',
-          remark: data.remark || ''
-        }
-        this.dialogVisible = true
-      })
+      const res = await getOrderDetail(row.id)
+      const data = res.data || row
+      this.form = {
+        id: data.id,
+        customerId: Number(data.customerId || 0) || undefined,
+        roomId: Number(data.roomId || 0) || undefined,
+        checkInDate: data.checkInDate || '',
+        checkOutDate: data.checkOutDate || '',
+        remark: data.remark || ''
+      }
+      this.dialogVisible = true
+      await this.fetchCustomerOptions()
+      await this.fetchRoomOptions(this.form.roomId)
+    },
+    async openDetailDialog(row) {
+      this.detailDialogVisible = true
+      this.detailLoading = true
+      try {
+        const res = await getOrderDetail(row.id)
+        this.detailData = res.data || {}
+      } finally {
+        this.detailLoading = false
+      }
+    },
+    handleDialogDateChange() {
+      this.fetchRoomOptions(this.isEdit ? this.form.roomId : undefined)
     },
     handleDialogClosed() {
       this.$refs.formRef && this.$refs.formRef.clearValidate()
