@@ -32,6 +32,59 @@
           </el-tree>
         </el-tab-pane>
 
+        <el-tab-pane label="系统日志" name="logs">
+          <el-alert
+            type="warning"
+            :closable="false"
+            style="margin-bottom: 16px;"
+            title="当前后端文档未明确日志接口路径，默认调用 /logs。若后端实际路径不同，请在“日志端点”中调整后查询。"
+          />
+
+          <el-form :inline="true" :model="logQuery" class="filter-form">
+            <el-form-item label="日志端点">
+              <el-input v-model="logEndpoint" placeholder="例如 /logs 或 /system/logs" style="width: 220px;" />
+            </el-form-item>
+            <el-form-item label="类型">
+              <el-select v-model="logQuery.type" clearable placeholder="全部" style="width: 160px;">
+                <el-option label="登录日志" value="LOGIN" />
+                <el-option label="操作日志" value="OPERATION" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="关键词">
+              <el-input v-model="logQuery.keyword" clearable placeholder="用户/模块/动作" @keyup.enter.native="handleLogSearch" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleLogSearch">查询</el-button>
+              <el-button @click="handleLogReset">重置</el-button>
+            </el-form-item>
+          </el-form>
+
+          <el-table v-loading="logLoading" :data="logTableData" border>
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="logType" label="类型" width="120" />
+            <el-table-column prop="username" label="用户" min-width="120" />
+            <el-table-column prop="module" label="模块" min-width="120" />
+            <el-table-column prop="action" label="动作" min-width="120" />
+            <el-table-column prop="ip" label="IP" min-width="140" />
+            <el-table-column prop="status" label="状态" width="100" />
+            <el-table-column prop="message" label="信息" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="createTime" label="时间" min-width="170" />
+          </el-table>
+
+          <div class="pagination-wrapper">
+            <el-pagination
+              background
+              layout="total, sizes, prev, pager, next"
+              :current-page="logQuery.pageNum"
+              :page-size="logQuery.pageSize"
+              :page-sizes="[10, 20, 50]"
+              :total="logTotal"
+              @size-change="handleLogSizeChange"
+              @current-change="handleLogCurrentChange"
+            />
+          </div>
+        </el-tab-pane>
+
         <el-tab-pane label="运行参数" name="runtime">
           <el-descriptions border :column="2">
             <el-descriptions-item label="前端 API 基址">{{ baseApi }}</el-descriptions-item>
@@ -54,6 +107,14 @@
 
 <script>
 import { asyncRoutes } from '@/router'
+import { listSystemLogs } from '@/api/systemLogs'
+
+const createDefaultLogQuery = () => ({
+  pageNum: 1,
+  pageSize: 10,
+  type: undefined,
+  keyword: ''
+})
 
 export default {
   name: 'SystemSettingsIndex',
@@ -79,12 +140,24 @@ export default {
           visibleModules: '个人中心、我的订单、下单界面',
           hiddenModules: '客房管理、订单管理（全部订单视图）、用户管理、系统设置'
         }
-      ]
+      ],
+      logEndpoint: '/logs',
+      logLoading: false,
+      logTotal: 0,
+      logTableData: [],
+      logQuery: createDefaultLogQuery()
     }
   },
   computed: {
     previewMenuTree() {
       return this.buildMenuTreeByRole(this.previewRole)
+    }
+  },
+  watch: {
+    activeTab(value) {
+      if (value === 'logs' && this.logTableData.length === 0) {
+        this.fetchLogs()
+      }
     }
   },
   methods: {
@@ -128,6 +201,54 @@ export default {
           .filter(node => node.children.length || node.label)
       }
       return walk(asyncRoutes)
+    },
+    normalizePageData(data) {
+      if (Array.isArray(data)) {
+        return { records: data, total: data.length }
+      }
+      return {
+        records: data?.records || [],
+        total: Number(data?.total || 0)
+      }
+    },
+    fetchLogs() {
+      const endpoint = (this.logEndpoint || '/logs').trim()
+      if (!endpoint.startsWith('/')) {
+        this.$message.warning('日志端点必须以 / 开头')
+        return
+      }
+
+      this.logLoading = true
+      listSystemLogs(this.logQuery, endpoint)
+        .then(res => {
+          const { records, total } = this.normalizePageData(res.data)
+          this.logTableData = records
+          this.logTotal = total
+        })
+        .catch(() => {
+          this.logTableData = []
+          this.logTotal = 0
+        })
+        .finally(() => {
+          this.logLoading = false
+        })
+    },
+    handleLogSearch() {
+      this.logQuery.pageNum = 1
+      this.fetchLogs()
+    },
+    handleLogReset() {
+      this.logQuery = createDefaultLogQuery()
+      this.fetchLogs()
+    },
+    handleLogSizeChange(size) {
+      this.logQuery.pageSize = size
+      this.logQuery.pageNum = 1
+      this.fetchLogs()
+    },
+    handleLogCurrentChange(page) {
+      this.logQuery.pageNum = page
+      this.fetchLogs()
     }
   }
 }
@@ -142,5 +263,14 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.filter-form {
+  margin-bottom: 12px;
+}
+
+.pagination-wrapper {
+  margin-top: 16px;
+  text-align: right;
 }
 </style>
