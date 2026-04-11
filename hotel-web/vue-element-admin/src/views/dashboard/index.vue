@@ -37,13 +37,14 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import { getRoleLabel } from '@/constants/dict'
 
 export default {
   name: 'Dashboard',
   computed: {
     ...mapGetters(['name', 'roles']),
     rolesText() {
-      return this.roles && this.roles.length ? this.roles.join(', ') : '未知'
+      return this.roles && this.roles.length ? this.roles.map(item => getRoleLabel(item)).join('、') : '未知'
     }
   }
 }

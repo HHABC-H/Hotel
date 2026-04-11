@@ -67,7 +67,7 @@
             <el-option
               v-for="item in roomOptions"
               :key="item.id"
-              :label="`#${item.roomNumber}（${item.status || 'AVAILABLE'}）`"
+              :label="`#${item.roomNumber}（${roomStatusLabel(item.status || 'AVAILABLE')}）`"
               :value="item.id"
             />
           </el-select>
@@ -85,7 +85,7 @@
 
       <el-descriptions v-if="selectedRoom" title="已选房间信息" :column="2" border size="small" style="margin-top: 16px;">
         <el-descriptions-item label="房间号">{{ selectedRoom.roomNumber }}</el-descriptions-item>
-        <el-descriptions-item label="房态">{{ selectedRoom.status }}</el-descriptions-item>
+        <el-descriptions-item label="房态">{{ roomStatusLabel(selectedRoom.status) }}</el-descriptions-item>
         <el-descriptions-item label="楼层">{{ selectedRoom.floor || '-' }}</el-descriptions-item>
         <el-descriptions-item label="房型ID">{{ selectedRoom.roomTypeId || '-' }}</el-descriptions-item>
       </el-descriptions>
@@ -97,6 +97,7 @@
 import { createOrder } from '@/api/orders'
 import { listCustomers } from '@/api/customers'
 import { listAvailableRooms } from '@/api/rooms'
+import { getRoomStatusLabel } from '@/constants/dict'
 
 const createDefaultForm = () => ({
   customerId: undefined,
@@ -186,6 +187,9 @@ export default {
     refreshOptions() {
       this.fetchCustomers()
       this.fetchAvailableRooms()
+    },
+    roomStatusLabel(value) {
+      return getRoomStatusLabel(value)
     },
     handleSubmit() {
       this.$refs.formRef.validate(valid => {

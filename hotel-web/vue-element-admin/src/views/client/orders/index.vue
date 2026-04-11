@@ -10,7 +10,11 @@
         <el-table-column prop="checkInDate" label="入住日期" min-width="120" />
         <el-table-column prop="checkOutDate" label="退房日期" min-width="120" />
         <el-table-column prop="totalAmount" label="总金额" min-width="100" />
-        <el-table-column prop="status" label="状态" min-width="110" />
+        <el-table-column label="状态" min-width="110">
+          <template slot-scope="scope">
+            {{ orderStatusLabel(scope.row.status) }}
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="action-wrap">
@@ -22,6 +26,7 @@
 
 <script>
 import { listMyOrders } from '@/api/orders'
+import { getOrderStatusLabel } from '@/constants/dict'
 
 export default {
   name: 'ClientOrdersIndex',
@@ -45,6 +50,9 @@ export default {
         .finally(() => {
           this.loading = false
         })
+    },
+    orderStatusLabel(value) {
+      return getOrderStatusLabel(value)
     }
   }
 }

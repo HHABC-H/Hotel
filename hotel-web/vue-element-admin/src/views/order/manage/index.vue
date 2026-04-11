@@ -12,10 +12,7 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable>
-            <el-option label="UNPAID" value="UNPAID" />
-            <el-option label="PAID" value="PAID" />
-            <el-option label="CANCELLED" value="CANCELLED" />
-            <el-option label="COMPLETED" value="COMPLETED" />
+            <el-option v-for="item in orderStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -32,7 +29,11 @@
         <el-table-column prop="checkInDate" label="入住日期" min-width="120" />
         <el-table-column prop="checkOutDate" label="退房日期" min-width="120" />
         <el-table-column prop="totalAmount" label="总金额" min-width="100" />
-        <el-table-column prop="status" label="状态" min-width="110" />
+        <el-table-column label="状态" min-width="110">
+          <template slot-scope="scope">
+            {{ orderStatusLabel(scope.row.status) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" min-width="420" fixed="right">
           <template slot-scope="scope">
             <el-button type="text" @click="openDetailDialog(scope.row)">详情</el-button>
@@ -111,7 +112,7 @@
             <el-option
               v-for="item in roomOptions"
               :key="item.id"
-              :label="`#${item.roomNumber}（${item.status || 'AVAILABLE'}）`"
+              :label="`#${item.roomNumber}（${roomStatusLabel(item.status || 'AVAILABLE')}）`"
               :value="item.id"
             />
           </el-select>
@@ -136,7 +137,7 @@
         <el-descriptions-item label="入住日期">{{ detailData.checkInDate || '-' }}</el-descriptions-item>
         <el-descriptions-item label="退房日期">{{ detailData.checkOutDate || '-' }}</el-descriptions-item>
         <el-descriptions-item label="总金额">{{ detailData.totalAmount || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ detailData.status || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ orderStatusLabel(detailData.status) }}</el-descriptions-item>
         <el-descriptions-item label="创建人ID">{{ detailData.createUserId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ detailData.createTime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="更新时间">{{ detailData.updateTime || '-' }}</el-descriptions-item>
@@ -162,6 +163,7 @@ import {
 } from '@/api/orders'
 import { listCustomers } from '@/api/customers'
 import { listAvailableRooms, getRoomDetail } from '@/api/rooms'
+import { ORDER_STATUS_OPTIONS, getOrderStatusLabel, getRoomStatusLabel } from '@/constants/dict'
 
 const createDefaultForm = () => ({
   id: null,
@@ -180,6 +182,7 @@ export default {
       submitting: false,
       total: 0,
       tableData: [],
+      orderStatusOptions: ORDER_STATUS_OPTIONS,
       query: {
         pageNum: 1,
         pageSize: 10,
@@ -394,6 +397,12 @@ export default {
     },
     canCancel(row) {
       return row.status !== 'CANCELLED' && row.status !== 'COMPLETED'
+    },
+    roomStatusLabel(value) {
+      return getRoomStatusLabel(value)
+    },
+    orderStatusLabel(value) {
+      return getOrderStatusLabel(value)
     },
     runActionWithConfirm({ row, action, actionName, successText }) {
       this.$confirm(`确认对订单【${row.orderNumber}】执行${actionName}吗？`, '提示', { type: 'warning' })

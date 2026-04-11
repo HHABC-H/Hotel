@@ -7,7 +7,11 @@
         <el-tab-pane label="权限矩阵" name="matrix">
           <el-alert title="角色可见性已与路由权限联动。下方表格用于业务核对。" type="success" :closable="false" style="margin-bottom: 16px;" />
           <el-table :data="permissionMatrix" border>
-            <el-table-column prop="roleName" label="角色" width="130" />
+            <el-table-column label="角色" width="130">
+              <template slot-scope="scope">
+                {{ roleLabel(scope.row.roleName) }}
+              </template>
+            </el-table-column>
             <el-table-column prop="visibleModules" label="可见模块" min-width="460" />
             <el-table-column prop="hiddenModules" label="不可见模块" min-width="460" />
           </el-table>
@@ -17,9 +21,7 @@
           <el-form :inline="true" class="preview-form">
             <el-form-item label="选择角色">
               <el-select v-model="previewRole" placeholder="请选择" style="width: 220px;">
-                <el-option label="管理员（ADMIN）" value="ADMIN" />
-                <el-option label="前台（RECEPTIONIST）" value="RECEPTIONIST" />
-                <el-option label="顾客（CLIENT）" value="CLIENT" />
+                <el-option v-for="item in roleOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
           </el-form>
@@ -90,7 +92,7 @@
             <el-descriptions-item label="前端 API 基址">{{ baseApi }}</el-descriptions-item>
             <el-descriptions-item label="JWT 过期时间">1800 秒（后端文档）</el-descriptions-item>
             <el-descriptions-item label="当前环境">{{ currentEnv }}</el-descriptions-item>
-            <el-descriptions-item label="权限模式">角色鉴权（ADMIN / RECEPTIONIST / CLIENT）</el-descriptions-item>
+            <el-descriptions-item label="权限模式">角色鉴权（管理员 / 前台 / 客户）</el-descriptions-item>
           </el-descriptions>
 
           <el-alert
@@ -108,6 +110,7 @@
 <script>
 import { asyncRoutes } from '@/router'
 import { listSystemLogs } from '@/api/systemLogs'
+import { ROLE_OPTIONS, getRoleLabel } from '@/constants/dict'
 
 const createDefaultLogQuery = () => ({
   pageNum: 1,
@@ -124,6 +127,7 @@ export default {
       previewRole: 'ADMIN',
       baseApi: process.env.VUE_APP_BASE_API,
       currentEnv: process.env.ENV || process.env.NODE_ENV || 'development',
+      roleOptions: ROLE_OPTIONS,
       permissionMatrix: [
         {
           roleName: 'ADMIN',
@@ -249,6 +253,9 @@ export default {
     handleLogCurrentChange(page) {
       this.logQuery.pageNum = page
       this.fetchLogs()
+    },
+    roleLabel(value) {
+      return getRoleLabel(value)
     }
   }
 }

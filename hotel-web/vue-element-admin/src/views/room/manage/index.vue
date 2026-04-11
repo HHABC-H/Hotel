@@ -15,9 +15,7 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable>
-            <el-option label="AVAILABLE" value="AVAILABLE" />
-            <el-option label="OCCUPIED" value="OCCUPIED" />
-            <el-option label="MAINTENANCE" value="MAINTENANCE" />
+            <el-option v-for="item in roomStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -31,7 +29,11 @@
         <el-table-column prop="roomNumber" label="房间号" min-width="110" />
         <el-table-column prop="roomTypeId" label="类型ID" min-width="90" />
         <el-table-column prop="floor" label="楼层" min-width="80" />
-        <el-table-column prop="status" label="状态" min-width="110" />
+        <el-table-column label="状态" min-width="110">
+          <template slot-scope="scope">
+            {{ roomStatusLabel(scope.row.status) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="170" />
         <el-table-column v-if="canManage" label="操作" min-width="260" fixed="right">
           <template slot-scope="scope">
@@ -39,9 +41,13 @@
             <el-dropdown @command="(status) => handleStatusChange(scope.row, status)">
               <el-button type="text">改状态<i class="el-icon-arrow-down el-icon--right" /></el-button>
               <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item command="AVAILABLE">AVAILABLE</el-dropdown-item>
-                <el-dropdown-item command="OCCUPIED">OCCUPIED</el-dropdown-item>
-                <el-dropdown-item command="MAINTENANCE">MAINTENANCE</el-dropdown-item>
+                <el-dropdown-item
+                  v-for="item in roomStatusOptions"
+                  :key="item.value"
+                  :command="item.value"
+                >
+                  {{ item.label }}
+                </el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
             <el-button type="text" class="danger-btn" @click="handleDelete(scope.row)">删除</el-button>
@@ -76,9 +82,7 @@
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status">
-            <el-option label="AVAILABLE" value="AVAILABLE" />
-            <el-option label="OCCUPIED" value="OCCUPIED" />
-            <el-option label="MAINTENANCE" value="MAINTENANCE" />
+            <el-option v-for="item in roomStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -93,6 +97,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { listRooms, getRoomDetail, createRoom, updateRoom, deleteRoom, updateRoomStatus } from '@/api/rooms'
+import { ROOM_STATUS_OPTIONS, getRoomStatusLabel } from '@/constants/dict'
 
 const createDefaultForm = () => ({
   id: null,
@@ -120,6 +125,7 @@ export default {
       dialogVisible: false,
       isEdit: false,
       form: createDefaultForm(),
+      roomStatusOptions: ROOM_STATUS_OPTIONS,
       rules: {
         roomNumber: [{ required: true, message: '请输入房间号', trigger: 'blur' }],
         roomTypeId: [{ required: true, message: '请输入客房类型ID', trigger: 'change' }],
@@ -242,13 +248,16 @@ export default {
       if (row.status === status) {
         return
       }
-      this.$confirm(`确认将房间【${row.roomNumber}】状态改为 ${status} 吗？`, '提示', { type: 'warning' })
+      this.$confirm(`确认将房间【${row.roomNumber}】状态改为 ${this.roomStatusLabel(status)} 吗？`, '提示', { type: 'warning' })
         .then(() => updateRoomStatus(row.id, { status }))
         .then(() => {
           this.$message.success('状态更新成功')
           this.fetchData()
         })
         .catch(() => {})
+    },
+    roomStatusLabel(value) {
+      return getRoomStatusLabel(value)
     },
     handleDelete(row) {
       this.$confirm(`确认删除房间【${row.roomNumber}】吗？`, '提示', { type: 'warning' })

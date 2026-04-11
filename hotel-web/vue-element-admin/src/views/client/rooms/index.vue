@@ -24,7 +24,11 @@
         <el-table-column prop="roomNumber" label="房间号" min-width="120" />
         <el-table-column prop="roomTypeId" label="类型ID" min-width="100" />
         <el-table-column prop="floor" label="楼层" min-width="80" />
-        <el-table-column prop="status" label="状态" min-width="110" />
+        <el-table-column label="状态" min-width="110">
+          <template slot-scope="scope">
+            {{ roomStatusLabel(scope.row.status) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="price" label="参考价格" min-width="100" />
         <el-table-column label="操作" width="120" fixed="right">
           <template slot-scope="scope">
@@ -39,6 +43,7 @@
 <script>
 import { browseRooms } from '@/api/rooms'
 import { createBooking } from '@/api/bookings'
+import { getRoomStatusLabel } from '@/constants/dict'
 
 export default {
   name: 'ClientRoomsIndex',
@@ -106,6 +111,9 @@ export default {
       createBooking(payload).then(() => {
         this.$message.success('预订成功')
       })
+    },
+    roomStatusLabel(value) {
+      return getRoomStatusLabel(value)
     }
   }
 }

@@ -8,7 +8,7 @@
           <el-input v-model="form.username" disabled />
         </el-form-item>
         <el-form-item label="角色">
-          <el-input v-model="form.role" disabled />
+          <el-input :value="roleLabel(form.roleCode)" disabled />
         </el-form-item>
         <el-form-item label="真实姓名" prop="realName">
           <el-input v-model="form.realName" />
@@ -38,6 +38,7 @@
 <script>
 import { getProfile, updateProfile } from '@/api/profile'
 import { validPhoneCN, validIdCardCN } from '@/utils/validate'
+import { getRoleLabel } from '@/constants/dict'
 
 export default {
   name: 'ClientProfileIndex',
@@ -68,7 +69,7 @@ export default {
       saving: false,
       form: {
         username: '',
-        role: '',
+        roleCode: '',
         realName: '',
         phone: '',
         idCard: '',
@@ -91,7 +92,7 @@ export default {
         const data = res.data || {}
         this.form = {
           username: data.username || '',
-          role: data.role || '',
+          roleCode: data.role || '',
           realName: data.realName || '',
           phone: data.phone || '',
           idCard: data.idCard || '',
@@ -122,6 +123,9 @@ export default {
             this.saving = false
           })
       })
+    },
+    roleLabel(value) {
+      return getRoleLabel(value)
     }
   }
 }

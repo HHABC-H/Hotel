@@ -12,9 +12,7 @@
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="query.role" placeholder="全部" clearable>
-            <el-option label="管理员" value="ADMIN" />
-            <el-option label="前台" value="RECEPTIONIST" />
-            <el-option label="客户" value="CLIENT" />
+            <el-option v-for="item in roleOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -35,7 +33,11 @@
         <el-table-column prop="realName" label="姓名" min-width="120" />
         <el-table-column prop="phone" label="手机号" min-width="130" />
         <el-table-column prop="idCard" label="身份证号" min-width="170" />
-        <el-table-column prop="role" label="角色" width="130" />
+        <el-table-column label="角色" width="130">
+          <template slot-scope="scope">
+            {{ roleLabel(scope.row.role) }}
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="100">
           <template slot-scope="scope">
             <el-tag :type="scope.row.status === 1 ? 'success' : 'info'">{{ scope.row.status === 1 ? '启用' : '禁用' }}</el-tag>
@@ -91,9 +93,7 @@
         </el-form-item>
         <el-form-item label="角色" prop="role">
           <el-select v-model="form.role" placeholder="请选择">
-            <el-option label="管理员" value="ADMIN" />
-            <el-option label="前台" value="RECEPTIONIST" />
-            <el-option label="客户" value="CLIENT" />
+            <el-option v-for="item in roleOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态" prop="status">
@@ -111,6 +111,7 @@
 <script>
 import { listUsers, getUserDetail, createUser, updateUser, deleteUser, updateUserStatus } from '@/api/users'
 import { validPhoneCN, validIdCardCN } from '@/utils/validate'
+import { ROLE_OPTIONS, getRoleLabel } from '@/constants/dict'
 
 const createDefaultForm = () => ({
   id: null,
@@ -175,6 +176,7 @@ export default {
       dialogVisible: false,
       isEdit: false,
       form: createDefaultForm(),
+      roleOptions: ROLE_OPTIONS,
       rules: {
         username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
         password: [{ required: true, trigger: 'blur', validator: validatePassword }],
@@ -323,6 +325,9 @@ export default {
           this.fetchData()
         })
         .catch(() => {})
+    },
+    roleLabel(value) {
+      return getRoleLabel(value)
     }
   }
 }
