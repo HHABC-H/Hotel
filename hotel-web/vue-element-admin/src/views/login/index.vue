@@ -100,7 +100,8 @@ export default {
         this.loading = true
         this.$store.dispatch('user/login', this.loginForm)
           .then(() => {
-            this.$router.push({ path: this.redirect || '/', query: this.otherQuery })
+            // 始终先回到首页，再由 HomeRedirect 按角色分流，避免旧 redirect 导致 404。
+            this.$router.push({ path: '/' })
           })
           .finally(() => {
             this.loading = false
