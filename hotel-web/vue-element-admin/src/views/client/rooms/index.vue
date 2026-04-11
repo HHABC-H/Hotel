@@ -81,6 +81,7 @@
         <el-descriptions-item label="应付金额">{{ payContext.totalAmount || '-' }}</el-descriptions-item>
       </el-descriptions>
       <span slot="footer" class="dialog-footer">
+        <el-button :loading="cancelSubmitting" @click="handleCancelNow">取消订单</el-button>
         <el-button @click="payDialogVisible = false">稍后支付</el-button>
         <el-button type="primary" :loading="paySubmitting" @click="handlePayNow">立即支付</el-button>
       </span>
@@ -90,8 +91,7 @@
 
 <script>
 import { browseRooms, listAvailableRooms } from '@/api/rooms'
-import { createBooking } from '@/api/bookings'
-import { listMyOrders, payOrder } from '@/api/orders'
+import { createBooking, payBooking, cancelBooking } from '@/api/bookings'
 import { getRoomStatusLabel } from '@/constants/dict'
 
 const createDefaultBookingForm = () => ({
@@ -108,6 +108,7 @@ export default {
       loading: false,
       bookingSubmitting: false,
       paySubmitting: false,
+      cancelSubmitting: false,
       tableData: [],
       query: {
         roomTypeId: ''
@@ -208,29 +209,6 @@ export default {
         status: payload.status || ''
       }
     },
-    async resolveOrderByMyOrders() {
-      const res = await listMyOrders({ pageNum: 1, pageSize: 50 })
-      const records = this.normalizeListData(res.data)
-
-      const exact = records.find(item => {
-        return Number(item.roomId) === Number(this.bookingForm.roomId) &&
-          item.checkInDate === this.bookingForm.checkInDate &&
-          item.checkOutDate === this.bookingForm.checkOutDate
-      })
-
-      const fallback = records.find(item => item.status === 'UNPAID' || item.status === '待支付')
-      const target = exact || fallback || {}
-
-      return {
-        orderId: target.id,
-        orderNumber: target.orderNumber || '',
-        roomId: target.roomId || this.bookingForm.roomId,
-        checkInDate: target.checkInDate || this.bookingForm.checkInDate,
-        checkOutDate: target.checkOutDate || this.bookingForm.checkOutDate,
-        totalAmount: target.totalAmount || '',
-        status: target.status || ''
-      }
-    },
     handleConfirmBooking() {
       this.$refs.bookingFormRef.validate(async(valid) => {
         if (!valid) {
@@ -245,18 +223,9 @@ export default {
         try {
           const res = await createBooking(this.bookingForm)
 
-          let orderInfo = this.extractOrderFromBookingResponse(res.data)
-          if (!orderInfo.orderId || !orderInfo.status) {
-            orderInfo = await this.resolveOrderByMyOrders()
-          }
+          const orderInfo = this.extractOrderFromBookingResponse(res.data)
           this.bookingDialogVisible = false
           this.payContext = orderInfo
-          if (orderInfo.status === 'PAID' || orderInfo.status === '已支付') {
-            this.$message.success('预订并支付成功')
-            this.searchMode = 'available'
-            this.fetchData()
-            return
-          }
           this.$message.success('预订成功')
           this.payDialogVisible = true
         } finally {
@@ -270,7 +239,7 @@ export default {
         return
       }
       this.paySubmitting = true
-      payOrder(this.payContext.orderId)
+      payBooking(this.payContext.orderId)
         .then(() => {
           this.$message.success('支付成功，已刷新房间状态')
           this.payDialogVisible = false
@@ -279,6 +248,23 @@ export default {
         })
         .finally(() => {
           this.paySubmitting = false
+        })
+    },
+    handleCancelNow() {
+      if (!this.payContext.orderId) {
+        this.$message.warning('未定位到订单ID，无法取消')
+        return
+      }
+      this.cancelSubmitting = true
+      cancelBooking(this.payContext.orderId)
+        .then(() => {
+          this.$message.success('订单已取消')
+          this.payDialogVisible = false
+          this.searchMode = 'available'
+          this.fetchData()
+        })
+        .finally(() => {
+          this.cancelSubmitting = false
         })
     },
     roomStatusLabel(value) {

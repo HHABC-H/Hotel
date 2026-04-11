@@ -18,8 +18,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,40 +48,27 @@ public class BookingController {
     @PostMapping
     @Transactional
     public Result<Order> booking(@RequestBody BookingRequest request) {
-        AuthUser current = SecurityUtils.getCurrentUser();
-        if (current == null) {
-            return Result.error(401, "未认证");
-        }
-        if (!Constant.CLIENT_ROLE.equals(current.getRole())) {
-            return Result.error(403, "仅客户角色可使用在线预订");
-        }
-        User currentUser = userService.getById(current.getUserId());
+        User currentUser = requireCurrentClient();
         if (currentUser == null) {
-            return Result.error(404, "当前客户不存在");
-        }
-        if (!Constant.CLIENT_ROLE.equals(currentUser.getRole())) {
-            return Result.error(403, "当前用户不是客户角色");
-        }
-        if (!Constant.STATUS_ENABLE.equals(currentUser.getStatus())) {
-            return Result.error(400, "账号已被禁用，无法预订");
+            return Result.error(401, "Unauthorized");
         }
 
         if (request == null || request.getRoomId() == null
                 || request.getCheckInDate() == null || request.getCheckOutDate() == null) {
-            return Result.error(400, "客房、入住日期、退房日期不能为空");
+            return Result.error(400, "Room and dates are required");
         }
         if (!request.getCheckInDate().isBefore(request.getCheckOutDate())) {
-            return Result.error(400, "退房日期必须晚于入住日期");
+            return Result.error(400, "Check-out date must be later than check-in date");
         }
 
         Room room = roomService.getById(request.getRoomId());
         if (room == null) {
-            return Result.error(404, "客房不存在");
+            return Result.error(404, "Room not found");
         }
 
         RoomType roomType = roomTypeService.getById(room.getRoomTypeId());
         if (roomType == null || roomType.getPrice() == null) {
-            return Result.error(400, "客房类型价格未配置");
+            return Result.error(400, "Room type price is not configured");
         }
 
         boolean overlap = orderService.lambdaQuery()
@@ -88,17 +78,11 @@ public class BookingController {
                 .gt(Order::getCheckOutDate, request.getCheckInDate())
                 .exists();
         if (overlap) {
-            return Result.error(400, "该时间段客房已被预订");
+            return Result.error(400, "Room already booked for this date range");
         }
 
         long days = ChronoUnit.DAYS.between(request.getCheckInDate(), request.getCheckOutDate());
         BigDecimal totalAmount = roomType.getPrice().multiply(BigDecimal.valueOf(days)).setScale(2, RoundingMode.HALF_UP);
-        if (safeBalance(currentUser).compareTo(totalAmount) < 0) {
-            return Result.error(400, "余额不足，请先充值");
-        }
-        if (!deductBalance(currentUser.getId(), totalAmount)) {
-            return Result.error(400, "余额不足，请先充值");
-        }
 
         Order order = new Order();
         order.setOrderNumber("BK" + System.currentTimeMillis() + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase());
@@ -107,7 +91,7 @@ public class BookingController {
         order.setCheckInDate(request.getCheckInDate());
         order.setCheckOutDate(request.getCheckOutDate());
         order.setTotalAmount(totalAmount);
-        order.setStatus(Constant.ORDER_STATUS_PAID);
+        order.setStatus(Constant.ORDER_STATUS_UNPAID);
         order.setRemark(request.getRemark());
         order.setCreateUserId(currentUser.getId());
 
@@ -115,26 +99,91 @@ public class BookingController {
             boolean saved = orderService.save(order);
             if (!saved) {
                 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-                return Result.error("预订失败");
+                return Result.error("Create booking failed");
             }
             return Result.success(order);
         } catch (DataIntegrityViolationException ex) {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-            return Result.error(400, "预订失败：客户或客房数据异常，请刷新后重试");
+            return Result.error(400, "Create booking failed");
         }
+    }
+
+    @PutMapping("/{id}/pay")
+    @Transactional
+    public Result<Order> payBooking(@PathVariable Long id) {
+        User currentUser = requireCurrentClient();
+        if (currentUser == null) {
+            return Result.error(401, "Unauthorized");
+        }
+
+        Order order = orderService.getById(id);
+        if (order == null) {
+            return Result.error(404, "Order not found");
+        }
+        if (!currentUser.getId().equals(order.getCustomerId())) {
+            return Result.error(403, "No permission");
+        }
+        if (!Constant.ORDER_STATUS_UNPAID.equals(order.getStatus())) {
+            return Result.error(400, "Only unpaid orders can be paid");
+        }
+        if (safeBalance(currentUser).compareTo(order.getTotalAmount()) < 0) {
+            return Result.error(400, "Insufficient balance");
+        }
+        if (!deductBalance(currentUser.getId(), order.getTotalAmount())) {
+            return Result.error(400, "Insufficient balance");
+        }
+
+        order.setStatus(Constant.ORDER_STATUS_PAID);
+        boolean updated = orderService.updateById(order);
+        if (!updated) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return Result.error("Pay booking failed");
+        }
+        return Result.success(order);
+    }
+
+    @DeleteMapping("/{id}/cancel")
+    @Transactional
+    public Result<?> cancelBooking(@PathVariable Long id) {
+        User currentUser = requireCurrentClient();
+        if (currentUser == null) {
+            return Result.error(401, "Unauthorized");
+        }
+
+        Order order = orderService.getById(id);
+        if (order == null) {
+            return Result.error(404, "Order not found");
+        }
+        if (!currentUser.getId().equals(order.getCustomerId())) {
+            return Result.error(403, "No permission");
+        }
+        if (Constant.ORDER_STATUS_CANCELLED.equals(order.getStatus())) {
+            return Result.success("Order already cancelled", null);
+        }
+        if (Constant.ORDER_STATUS_COMPLETED.equals(order.getStatus())) {
+            return Result.error(400, "Completed order cannot be cancelled");
+        }
+        if (!Constant.ORDER_STATUS_UNPAID.equals(order.getStatus())) {
+            return Result.error(400, "Only unpaid orders can be cancelled online");
+        }
+
+        Room room = roomService.getById(order.getRoomId());
+        if (room != null && Constant.ROOM_STATUS_OCCUPIED.equals(room.getStatus())) {
+            return Result.error(400, "Occupied order cannot be cancelled");
+        }
+
+        order.setStatus(Constant.ORDER_STATUS_CANCELLED);
+        return orderService.updateById(order) ? Result.success() : Result.error("Cancel booking failed");
     }
 
     @GetMapping("/my")
     public Result<List<Order>> myBookings() {
-        AuthUser current = SecurityUtils.getCurrentUser();
-        if (current == null) {
-            return Result.error(401, "未认证");
-        }
-        if (!Constant.CLIENT_ROLE.equals(current.getRole())) {
-            return Result.error(403, "仅客户角色可查看我的预订");
+        User currentUser = requireCurrentClient();
+        if (currentUser == null) {
+            return Result.error(401, "Unauthorized");
         }
         List<Order> bookings = orderService.lambdaQuery()
-                .eq(Order::getCustomerId, current.getUserId())
+                .eq(Order::getCustomerId, currentUser.getId())
                 .orderByDesc(Order::getId)
                 .list();
         return Result.success(bookings);
@@ -148,6 +197,21 @@ public class BookingController {
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         private LocalDate checkOutDate;
         private String remark;
+    }
+
+    private User requireCurrentClient() {
+        AuthUser current = SecurityUtils.getCurrentUser();
+        if (current == null || !Constant.CLIENT_ROLE.equals(current.getRole())) {
+            return null;
+        }
+        User user = userService.getById(current.getUserId());
+        if (user == null || !Constant.CLIENT_ROLE.equals(user.getRole())) {
+            return null;
+        }
+        if (!Constant.STATUS_ENABLE.equals(user.getStatus())) {
+            return null;
+        }
+        return user;
     }
 
     private BigDecimal safeBalance(User user) {

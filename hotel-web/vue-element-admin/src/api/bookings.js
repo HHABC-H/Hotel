@@ -15,3 +15,18 @@ export function listMyBookings(params) {
     params
   })
 }
+
+export function payBooking(id) {
+  return request({
+    url: `/bookings/${id}/pay`,
+    method: 'put'
+  })
+}
+
+export function cancelBooking(id) {
+  return request({
+    url: `/bookings/${id}/cancel`,
+    method: 'delete'
+  })
+}
+
