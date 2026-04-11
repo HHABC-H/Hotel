@@ -87,7 +87,7 @@
             value-format="yyyy-MM-dd"
             placeholder="请选择入住日期"
             style="width: 100%;"
-            @change="handleDialogDateChange"
+            @change="handleDialogCheckInDateChange"
           />
         </el-form-item>
         <el-form-item label="退房日期" prop="checkOutDate">
@@ -97,7 +97,8 @@
             value-format="yyyy-MM-dd"
             placeholder="请选择退房日期"
             style="width: 100%;"
-            @change="handleDialogDateChange"
+            :picker-options="dialogCheckOutDatePickerOptions"
+            @change="handleDialogCheckOutDateChange"
           />
         </el-form-item>
         <el-form-item label="房间" prop="roomId">
@@ -130,49 +131,49 @@
 
     <el-dialog title="订单详情" :visible.sync="detailDialogVisible" width="860px">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
-      <div v-else>
+      <div v-else class="detail-layout">
         <el-divider content-position="left">订单信息</el-divider>
-        <el-descriptions :column="3" border size="small">
-          <el-descriptions-item label="订单ID">{{ detailData.id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="订单号">{{ detailData.orderNumber || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ orderStatusLabel(detailData.status) }}</el-descriptions-item>
-          <el-descriptions-item label="总金额">{{ formatAmount(detailData.totalAmount) }}</el-descriptions-item>
-          <el-descriptions-item label="入住日期">{{ detailData.checkInDate || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="退房日期">{{ detailData.checkOutDate || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="入住天数">{{ stayNights(detailData) }}</el-descriptions-item>
-          <el-descriptions-item label="客户ID">{{ detailData.customerId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="房间ID">{{ detailData.roomId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="备注" :span="3">{{ detailData.remark || '-' }}</el-descriptions-item>
-        </el-descriptions>
+        <el-row :gutter="16" class="detail-grid">
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">订单ID</span><span class="detail-value">{{ detailData.id || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">订单号</span><span class="detail-value">{{ detailData.orderNumber || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">状态</span><span class="detail-value">{{ orderStatusLabel(detailData.status) }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">总金额</span><span class="detail-value">{{ formatAmount(detailData.totalAmount) }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">入住日期</span><span class="detail-value">{{ detailData.checkInDate || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">退房日期</span><span class="detail-value">{{ detailData.checkOutDate || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">入住天数</span><span class="detail-value">{{ stayNights(detailData) }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">客户ID</span><span class="detail-value">{{ detailData.customerId || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">房间ID</span><span class="detail-value">{{ detailData.roomId || '-' }}</span></div></el-col>
+          <el-col :span="24"><div class="detail-item"><span class="detail-label">备注</span><span class="detail-value">{{ detailData.remark || '-' }}</span></div></el-col>
+        </el-row>
 
         <el-divider content-position="left">房间信息</el-divider>
-        <el-descriptions :column="3" border size="small">
-          <el-descriptions-item label="房间ID">{{ detailRoom.id || detailData.roomId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="房间号">{{ detailRoom.roomNumber || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="楼层">{{ detailRoom.floor || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="房型ID">{{ detailRoom.roomTypeId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="房态">{{ roomStatusLabel(detailRoom.status || '-') }}</el-descriptions-item>
-          <el-descriptions-item label="参考价格">{{ formatAmount(detailRoom.price) }}</el-descriptions-item>
-        </el-descriptions>
+        <el-row :gutter="16" class="detail-grid">
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">房间ID</span><span class="detail-value">{{ detailRoom.id || detailData.roomId || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">房间号</span><span class="detail-value">{{ detailRoom.roomNumber || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">楼层</span><span class="detail-value">{{ detailRoom.floor || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">房型ID</span><span class="detail-value">{{ detailRoom.roomTypeId || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">房态</span><span class="detail-value">{{ roomStatusLabel(detailRoom.status || '-') }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">参考价格</span><span class="detail-value">{{ formatAmount(detailRoom.price) }}</span></div></el-col>
+        </el-row>
 
         <el-divider content-position="left">顾客信息</el-divider>
-        <el-descriptions :column="3" border size="small">
-          <el-descriptions-item label="客户ID">{{ detailCustomer.id || detailData.customerId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="姓名">{{ detailCustomer.realName || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="用户名">{{ detailCustomer.username || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="手机号">{{ detailCustomer.phone || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="身份证">{{ detailCustomer.idCard || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="性别">{{ genderLabel(detailCustomer.gender) }}</el-descriptions-item>
-          <el-descriptions-item label="账户状态">{{ enableStatusLabel(detailCustomer.status) || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="账户余额">{{ formatAmount(detailCustomer.balance) }}</el-descriptions-item>
-        </el-descriptions>
+        <el-row :gutter="16" class="detail-grid">
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">客户ID</span><span class="detail-value">{{ detailCustomer.id || detailData.customerId || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">姓名</span><span class="detail-value">{{ detailCustomer.realName || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">用户名</span><span class="detail-value">{{ detailCustomer.username || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">手机号</span><span class="detail-value">{{ detailCustomer.phone || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">身份证</span><span class="detail-value">{{ detailCustomer.idCard || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">性别</span><span class="detail-value">{{ genderLabel(detailCustomer.gender) }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">账户状态</span><span class="detail-value">{{ enableStatusLabel(detailCustomer.status) || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">账户余额</span><span class="detail-value">{{ formatAmount(detailCustomer.balance) }}</span></div></el-col>
+        </el-row>
 
         <el-divider content-position="left">操作信息</el-divider>
-        <el-descriptions :column="3" border size="small">
-          <el-descriptions-item label="下单人ID">{{ detailData.createUserId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="下单时间">{{ formatDateTime(detailData.createTime) }}</el-descriptions-item>
-          <el-descriptions-item label="更新时间">{{ formatDateTime(detailData.updateTime) }}</el-descriptions-item>
-        </el-descriptions>
+        <el-row :gutter="16" class="detail-grid">
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">下单人ID</span><span class="detail-value">{{ detailData.createUserId || '-' }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">下单时间</span><span class="detail-value">{{ formatDateTime(detailData.createTime) }}</span></div></el-col>
+          <el-col :span="8"><div class="detail-item"><span class="detail-label">更新时间</span><span class="detail-value">{{ formatDateTime(detailData.updateTime) }}</span></div></el-col>
+        </el-row>
       </div>
       <span slot="footer" class="dialog-footer">
         <el-button type="primary" @click="detailDialogVisible = false">关闭</el-button>
@@ -271,6 +272,15 @@ export default {
   computed: {
     canLoadRooms() {
       return !!this.form.checkInDate && !!this.form.checkOutDate
+    },
+    dialogCheckOutDatePickerOptions() {
+      return {
+        disabledDate: (time) => {
+          const current = new Date(time).setHours(0, 0, 0, 0)
+          const checkIn = this.parseDateStart(this.form.checkInDate)
+          return checkIn ? current <= checkIn : false
+        }
+      }
     }
   },
   created() {
@@ -435,7 +445,40 @@ export default {
         this.detailLoading = false
       }
     },
-    handleDialogDateChange() {
+    parseDateStart(dateStr) {
+      if (!dateStr) {
+        return null
+      }
+      const timestamp = new Date(`${dateStr}T00:00:00`).getTime()
+      return Number.isNaN(timestamp) ? null : timestamp
+    },
+    plusOneDay(dateStr) {
+      const start = this.parseDateStart(dateStr)
+      if (!start) {
+        return ''
+      }
+      const dayMs = 24 * 60 * 60 * 1000
+      const next = new Date(start + dayMs)
+      const y = next.getFullYear()
+      const m = String(next.getMonth() + 1).padStart(2, '0')
+      const d = String(next.getDate()).padStart(2, '0')
+      return `${y}-${m}-${d}`
+    },
+    ensureDialogDateRange() {
+      if (!this.form.checkInDate) {
+        return
+      }
+      const inTs = this.parseDateStart(this.form.checkInDate)
+      const outTs = this.parseDateStart(this.form.checkOutDate)
+      if (!outTs || outTs <= inTs) {
+        this.form.checkOutDate = this.plusOneDay(this.form.checkInDate)
+      }
+    },
+    handleDialogCheckInDateChange() {
+      this.ensureDialogDateRange()
+      this.fetchRoomOptions(this.isEdit ? this.form.roomId : undefined)
+    },
+    handleDialogCheckOutDateChange() {
       this.fetchRoomOptions(this.isEdit ? this.form.roomId : undefined)
     },
     handleDialogClosed() {
@@ -627,5 +670,37 @@ export default {
 
 .danger-btn {
   color: #f56c6c;
+}
+
+.detail-layout {
+  max-height: 62vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.detail-grid {
+  margin: 6px 0 2px;
+}
+
+.detail-item {
+  display: flex;
+  min-height: 34px;
+  line-height: 18px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.detail-label {
+  width: 84px;
+  flex-shrink: 0;
+  color: #909399;
+}
+
+.detail-value {
+  color: #303133;
+  word-break: break-all;
 }
 </style>

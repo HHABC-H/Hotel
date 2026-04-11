@@ -39,7 +39,8 @@
             value-format="yyyy-MM-dd"
             placeholder="选择入住日期"
             style="width: 100%;"
-            @change="handleDateChange"
+            :picker-options="checkInDatePickerOptions"
+            @change="handleCheckInDateChange"
           />
         </el-form-item>
 
@@ -50,7 +51,8 @@
             value-format="yyyy-MM-dd"
             placeholder="选择退房日期"
             style="width: 100%;"
-            @change="handleDateChange"
+            :picker-options="checkOutDatePickerOptions"
+            @change="handleCheckOutDateChange"
           />
         </el-form-item>
 
@@ -83,12 +85,15 @@
         </el-form-item>
       </el-form>
 
-      <el-descriptions v-if="selectedRoom" title="已选房间信息" :column="2" border size="small" style="margin-top: 16px;">
-        <el-descriptions-item label="房间号">{{ selectedRoom.roomNumber }}</el-descriptions-item>
-        <el-descriptions-item label="房态">{{ roomStatusLabel(selectedRoom.status) }}</el-descriptions-item>
-        <el-descriptions-item label="楼层">{{ selectedRoom.floor || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="房型ID">{{ selectedRoom.roomTypeId || '-' }}</el-descriptions-item>
-      </el-descriptions>
+      <div v-if="selectedRoom" class="selected-room-panel">
+        <div class="selected-room-title">已选房间信息</div>
+        <el-row :gutter="16">
+          <el-col :span="12"><div class="selected-room-item"><span class="selected-room-label">房间号</span><span class="selected-room-value">{{ selectedRoom.roomNumber || '-' }}</span></div></el-col>
+          <el-col :span="12"><div class="selected-room-item"><span class="selected-room-label">房态</span><span class="selected-room-value">{{ roomStatusLabel(selectedRoom.status) }}</span></div></el-col>
+          <el-col :span="12"><div class="selected-room-item"><span class="selected-room-label">楼层</span><span class="selected-room-value">{{ selectedRoom.floor || '-' }}</span></div></el-col>
+          <el-col :span="12"><div class="selected-room-item"><span class="selected-room-label">房型ID</span><span class="selected-room-value">{{ selectedRoom.roomTypeId || '-' }}</span></div></el-col>
+        </el-row>
+      </div>
     </el-card>
   </div>
 </template>
@@ -117,6 +122,12 @@ export default {
       customerOptions: [],
       roomOptions: [],
       form: createDefaultForm(),
+      checkInDatePickerOptions: {
+        disabledDate(time) {
+          const todayStart = new Date().setHours(0, 0, 0, 0)
+          return time.getTime() < todayStart
+        }
+      },
       rules: {
         customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
         roomId: [{ required: true, message: '请选择房间', trigger: 'change' }],
@@ -131,6 +142,19 @@ export default {
     },
     selectedRoom() {
       return this.roomOptions.find(item => item.id === this.form.roomId)
+    },
+    checkOutDatePickerOptions() {
+      return {
+        disabledDate: (time) => {
+          const current = new Date(time).setHours(0, 0, 0, 0)
+          const checkIn = this.parseDateStart(this.form.checkInDate)
+          if (!checkIn) {
+            const todayStart = new Date().setHours(0, 0, 0, 0)
+            return current < todayStart
+          }
+          return current <= checkIn
+        }
+      }
     }
   },
   created() {
@@ -181,7 +205,40 @@ export default {
           this.roomLoading = false
         })
     },
-    handleDateChange() {
+    parseDateStart(dateStr) {
+      if (!dateStr) {
+        return null
+      }
+      const timestamp = new Date(`${dateStr}T00:00:00`).getTime()
+      return Number.isNaN(timestamp) ? null : timestamp
+    },
+    plusOneDay(dateStr) {
+      const start = this.parseDateStart(dateStr)
+      if (!start) {
+        return ''
+      }
+      const dayMs = 24 * 60 * 60 * 1000
+      const next = new Date(start + dayMs)
+      const y = next.getFullYear()
+      const m = String(next.getMonth() + 1).padStart(2, '0')
+      const d = String(next.getDate()).padStart(2, '0')
+      return `${y}-${m}-${d}`
+    },
+    ensureValidDateRange() {
+      if (!this.form.checkInDate) {
+        return
+      }
+      const inTs = this.parseDateStart(this.form.checkInDate)
+      const outTs = this.parseDateStart(this.form.checkOutDate)
+      if (!outTs || outTs <= inTs) {
+        this.form.checkOutDate = this.plusOneDay(this.form.checkInDate)
+      }
+    },
+    handleCheckInDateChange() {
+      this.ensureValidDateRange()
+      this.fetchAvailableRooms()
+    },
+    handleCheckOutDateChange() {
       this.fetchAvailableRooms()
     },
     refreshOptions() {
@@ -233,5 +290,37 @@ export default {
 
 .order-form {
   max-width: 560px;
+}
+
+.selected-room-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.selected-room-title {
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.selected-room-item {
+  display: flex;
+  margin-bottom: 10px;
+  line-height: 20px;
+}
+
+.selected-room-label {
+  width: 68px;
+  flex-shrink: 0;
+  color: #909399;
+}
+
+.selected-room-value {
+  color: #303133;
+  word-break: break-all;
 }
 </style>
