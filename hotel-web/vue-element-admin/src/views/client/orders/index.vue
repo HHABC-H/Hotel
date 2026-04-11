@@ -45,7 +45,7 @@
     <el-dialog title="续房" :visible.sync="renewDialogVisible" width="420px" @closed="handleRenewDialogClosed">
       <el-form label-width="100px">
         <el-form-item label="当前退房日">
-          <el-input :value="renewTarget?.checkOutDate || '-'" disabled />
+          <el-input :value="renewCurrentCheckOutDate()" disabled />
         </el-form-item>
         <el-form-item label="新退房日期">
           <el-date-picker
@@ -148,6 +148,9 @@ export default {
       }
       const status = this.normalizeOrderStatus(row.status)
       return ['UNPAID', 'PAID'].includes(status)
+    },
+    renewCurrentCheckOutDate() {
+      return (this.renewTarget && this.renewTarget.checkOutDate) || '-'
     },
     openRenewDialog(row) {
       this.renewTarget = row
