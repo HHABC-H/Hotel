@@ -1,0 +1,18 @@
+用户明文密码对照（对应 init_data_bcrypt.sql）
+
+1) username: admin
+   password(明文): admin
+   role: ADMIN
+
+2) username: front01
+   password(明文): reception123
+   role: RECEPTIONIST
+
+3) username: client01
+   password(明文): client123
+   role: CLIENT
+
+4) username: client02
+   password(明文): client456
+   role: CLIENT
+
