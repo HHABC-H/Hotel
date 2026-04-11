@@ -15,6 +15,19 @@
             {{ orderStatusLabel(scope.row.status) }}
           </template>
         </el-table-column>
+        <el-table-column label="操作" width="130" fixed="right">
+          <template slot-scope="scope">
+            <el-button
+              v-if="canCancelOrder(scope.row)"
+              type="text"
+              :loading="cancelingOrderId === scope.row.id"
+              @click="handleCancelOrder(scope.row)"
+            >
+              取消订单
+            </el-button>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="action-wrap">
@@ -26,6 +39,7 @@
 
 <script>
 import { listMyOrders } from '@/api/orders'
+import { cancelBooking } from '@/api/bookings'
 import { getOrderStatusLabel } from '@/constants/dict'
 
 export default {
@@ -33,6 +47,7 @@ export default {
   data() {
     return {
       loading: false,
+      cancelingOrderId: null,
       tableData: []
     }
   },
@@ -53,6 +68,37 @@ export default {
     },
     orderStatusLabel(value) {
       return getOrderStatusLabel(value)
+    },
+    canCancelOrder(row) {
+      return row && row.status === 'UNPAID'
+    },
+    async handleCancelOrder(row) {
+      if (!row || !row.id) {
+        return
+      }
+
+      try {
+        await this.$confirm('确认取消该订单吗？', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+      } catch (e) {
+        return
+      }
+
+      this.cancelingOrderId = row.id
+      try {
+        await cancelBooking(row.id)
+        const rowIndex = this.tableData.findIndex(item => item.id === row.id)
+        if (rowIndex !== -1) {
+          this.$set(this.tableData[rowIndex], 'status', 'CANCELLED')
+        }
+        this.$message.success('订单已取消')
+        await this.fetchData()
+      } finally {
+        this.cancelingOrderId = null
+      }
     }
   }
 }
