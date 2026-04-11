@@ -1,0 +1,316 @@
+﻿<template>
+  <div class="app-container">
+    <el-card shadow="never">
+      <div slot="header" class="header-row">
+        <span>客户管理</span>
+        <el-button v-if="canManage" type="primary" size="mini" @click="openCreateDialog">新增客户</el-button>
+      </div>
+
+      <el-form :inline="true" :model="query" class="filter-form">
+        <el-form-item label="关键词">
+          <el-input v-model="query.keyword" placeholder="姓名/手机号/身份证/用户名" clearable @keyup.enter.native="handleSearch" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table v-loading="loading" :data="tableData" border>
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="username" label="用户名" min-width="120" />
+        <el-table-column prop="realName" label="姓名" min-width="120" />
+        <el-table-column prop="phone" label="手机号" min-width="130" />
+        <el-table-column prop="idCard" label="身份证号" min-width="170" />
+        <el-table-column prop="gender" label="性别" width="90" />
+        <el-table-column label="状态" width="100">
+          <template slot-scope="scope">
+            <el-tag :type="scope.row.status === 1 ? 'success' : 'info'">{{ scope.row.status === 1 ? '启用' : '禁用' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="canManage" label="操作" width="170" fixed="right">
+          <template slot-scope="scope">
+            <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
+            <el-button type="text" class="danger-btn" @click="handleDelete(scope.row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="pagination-wrapper">
+        <el-pagination
+          background
+          layout="total, sizes, prev, pager, next"
+          :current-page="query.pageNum"
+          :page-size="query.pageSize"
+          :page-sizes="[10, 20, 50]"
+          :total="total"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
+    </el-card>
+
+    <el-dialog v-if="canManage" :title="isEdit ? '编辑客户' : '新增客户'" :visible.sync="dialogVisible" width="560px" @closed="handleDialogClosed">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form-item label="用户名" prop="username">
+          <el-input v-model="form.username" :disabled="isEdit" />
+        </el-form-item>
+        <el-form-item label="密码" :prop="isEdit ? '' : 'password'">
+          <el-input v-model="form.password" type="password" autocomplete="new-password" :placeholder="isEdit ? '留空表示不修改密码' : '请输入密码'" />
+        </el-form-item>
+        <el-form-item label="真实姓名" prop="realName">
+          <el-input v-model="form.realName" />
+        </el-form-item>
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="form.phone" />
+        </el-form-item>
+        <el-form-item label="身份证号" prop="idCard">
+          <el-input v-model="form.idCard" />
+        </el-form-item>
+        <el-form-item label="性别" prop="gender">
+          <el-select v-model="form.gender">
+            <el-option label="男" value="M" />
+            <el-option label="女" value="F" />
+            <el-option label="未知" value="UNKNOWN" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态" prop="status">
+          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
+      </span>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex'
+import { listCustomers, getCustomerDetail, createCustomer, updateCustomer, deleteCustomer } from '@/api/customers'
+import { validPhoneCN, validIdCardCN } from '@/utils/validate'
+
+const createDefaultForm = () => ({
+  id: null,
+  username: '',
+  password: '',
+  realName: '',
+  phone: '',
+  idCard: '',
+  gender: 'UNKNOWN',
+  status: 1
+})
+
+export default {
+  name: 'CustomerManageIndex',
+  data() {
+    const validatePhone = (rule, value, callback) => {
+      if (!value) {
+        callback(new Error('请输入手机号'))
+        return
+      }
+      if (!validPhoneCN(value)) {
+        callback(new Error('手机号格式不正确'))
+        return
+      }
+      callback()
+    }
+    const validateIdCard = (rule, value, callback) => {
+      if (!value) {
+        callback()
+        return
+      }
+      if (!validIdCardCN(value)) {
+        callback(new Error('身份证号格式不正确'))
+        return
+      }
+      callback()
+    }
+    const validatePassword = (rule, value, callback) => {
+      if (!value) {
+        callback(new Error('请输入密码'))
+        return
+      }
+      if (String(value).length < 6) {
+        callback(new Error('密码长度至少 6 位'))
+        return
+      }
+      callback()
+    }
+    return {
+      loading: false,
+      submitting: false,
+      total: 0,
+      tableData: [],
+      query: {
+        pageNum: 1,
+        pageSize: 10,
+        keyword: ''
+      },
+      dialogVisible: false,
+      isEdit: false,
+      form: createDefaultForm(),
+      rules: {
+        username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+        password: [{ required: true, trigger: 'blur', validator: validatePassword }],
+        realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+        phone: [{ required: true, trigger: 'blur', validator: validatePhone }],
+        idCard: [{ trigger: 'blur', validator: validateIdCard }],
+        gender: [{ required: true, message: '请选择性别', trigger: 'change' }]
+      }
+    }
+  },
+  computed: {
+    ...mapGetters(['roles']),
+    canManage() {
+      return this.roles.includes('ADMIN')
+    }
+  },
+  created() {
+    this.fetchData()
+  },
+  methods: {
+    normalizePageData(data) {
+      if (Array.isArray(data)) {
+        return { records: data, total: data.length }
+      }
+      return {
+        records: data?.records || [],
+        total: Number(data?.total || 0)
+      }
+    },
+    fetchData() {
+      this.loading = true
+      listCustomers(this.query)
+        .then(res => {
+          const { records, total } = this.normalizePageData(res.data)
+          this.tableData = records
+          this.total = total
+        })
+        .finally(() => {
+          this.loading = false
+        })
+    },
+    handleSearch() {
+      this.query.pageNum = 1
+      this.fetchData()
+    },
+    handleReset() {
+      this.query = {
+        pageNum: 1,
+        pageSize: 10,
+        keyword: ''
+      }
+      this.fetchData()
+    },
+    handleSizeChange(size) {
+      this.query.pageSize = size
+      this.query.pageNum = 1
+      this.fetchData()
+    },
+    handleCurrentChange(page) {
+      this.query.pageNum = page
+      this.fetchData()
+    },
+    openCreateDialog() {
+      this.isEdit = false
+      this.form = createDefaultForm()
+      this.dialogVisible = true
+    },
+    openEditDialog(row) {
+      this.isEdit = true
+      getCustomerDetail(row.id).then(res => {
+        const data = res.data || row
+        this.form = {
+          id: data.id,
+          username: data.username || '',
+          password: '',
+          realName: data.realName || '',
+          phone: data.phone || '',
+          idCard: data.idCard || '',
+          gender: data.gender || 'UNKNOWN',
+          status: data.status === 0 ? 0 : 1
+        }
+        this.dialogVisible = true
+      })
+    },
+    handleDialogClosed() {
+      this.$refs.formRef && this.$refs.formRef.clearValidate()
+      this.submitting = false
+    },
+    buildPayload() {
+      const payload = {
+        username: this.form.username,
+        realName: this.form.realName,
+        phone: this.form.phone,
+        idCard: this.form.idCard || null,
+        gender: this.form.gender,
+        status: this.form.status
+      }
+      if (this.form.password) {
+        payload.password = this.form.password
+      }
+      return payload
+    },
+    handleSubmit() {
+      this.$refs.formRef.validate(valid => {
+        if (!valid) {
+          return false
+        }
+
+        if (!this.isEdit && !this.form.password) {
+          this.$message.warning('新增客户必须填写密码')
+          return
+        }
+
+        const payload = this.buildPayload()
+        this.submitting = true
+        const request = this.isEdit
+          ? updateCustomer(this.form.id, payload)
+          : createCustomer(payload)
+
+        request
+          .then(() => {
+            this.$message.success(this.isEdit ? '更新成功' : '新增成功')
+            this.dialogVisible = false
+            this.fetchData()
+          })
+          .finally(() => {
+            this.submitting = false
+          })
+      })
+    },
+    handleDelete(row) {
+      this.$confirm(`确认删除客户【${row.username}】吗？`, '提示', { type: 'warning' })
+        .then(() => deleteCustomer(row.id))
+        .then(() => {
+          this.$message.success('删除成功')
+          this.fetchData()
+        })
+        .catch(() => {})
+    }
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.filter-form {
+  margin-bottom: 12px;
+}
+
+.pagination-wrapper {
+  margin-top: 16px;
+  text-align: right;
+}
+
+.danger-btn {
+  color: #f56c6c;
+}
+</style>
