@@ -87,11 +87,25 @@ export default {
       }
       return upper || raw
     },
+    isDateCancelable(checkOutDate) {
+      if (!checkOutDate) {
+        return false
+      }
+      const checkout = new Date(`${checkOutDate}T23:59:59`)
+      if (Number.isNaN(checkout.getTime())) {
+        return false
+      }
+      return Date.now() <= checkout.getTime()
+    },
     canCancelOrder(row) {
       if (!row) {
         return false
       }
-      return this.normalizeOrderStatus(row.status) === 'UNPAID'
+      const status = this.normalizeOrderStatus(row.status)
+      if (!['UNPAID', 'PAID'].includes(status)) {
+        return false
+      }
+      return this.isDateCancelable(row.checkOutDate)
     },
     async handleCancelOrder(row) {
       if (!row || !row.id) {
