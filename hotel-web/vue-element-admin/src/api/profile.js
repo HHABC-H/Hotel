@@ -14,3 +14,11 @@ export function updateProfile(data) {
     data
   })
 }
+
+export function rechargeProfile(data) {
+  return request({
+    url: '/profile/recharge',
+    method: 'put',
+    data
+  })
+}

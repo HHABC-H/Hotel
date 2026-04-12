@@ -11,7 +11,10 @@
           <el-input :value="roleLabel(form.roleCode)" disabled />
         </el-form-item>
         <el-form-item label="账户余额">
-          <el-input :value="formatCurrency(form.balance)" disabled />
+          <div class="balance-row">
+            <el-input :value="formatCurrency(form.balance)" disabled />
+            <el-button type="primary" plain @click="openRechargeDialog">充值</el-button>
+          </div>
         </el-form-item>
         <el-form-item label="真实姓名" prop="realName">
           <el-input v-model="form.realName" />
@@ -35,11 +38,41 @@
         </el-form-item>
       </el-form>
     </el-card>
+
+    <el-dialog title="账户充值" :visible.sync="rechargeDialogVisible" width="460px">
+      <el-form label-width="100px">
+        <el-form-item label="选择金额">
+          <el-radio-group v-model="rechargeAmount">
+            <el-radio-button v-for="item in rechargeOptions" :key="item" :label="item">
+              {{ formatCurrency(item) }}
+            </el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="rechargeDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleRechargeConfirm">确定</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="扫码充值" :visible.sync="qrDialogVisible" width="420px" :close-on-click-modal="false" :show-close="false">
+      <div class="qr-box">
+        <el-image class="qr-image" :src="qrCodeUrl" fit="contain">
+          <div slot="error" class="qr-fallback">二维码加载失败，请稍后重试</div>
+        </el-image>
+        <p v-if="!rechargeSuccess" class="qr-tip">请扫码支付，{{ rechargeSecondsLeft }} 秒后自动到账</p>
+        <p v-else class="qr-tip success">充值成功</p>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="handleRechargeCancel">取消</el-button>
+        <el-button type="primary" :disabled="!rechargeSuccess" @click="handleRechargeBack">返回</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { getProfile, updateProfile } from '@/api/profile'
+import { getProfile, rechargeProfile, updateProfile } from '@/api/profile'
 import { validPhoneCN, validIdCardCN } from '@/utils/validate'
 import { getRoleLabel } from '@/constants/dict'
 
@@ -84,11 +117,27 @@ export default {
         phone: [{ required: true, trigger: 'blur', validator: validatePhone }],
         idCard: [{ trigger: 'blur', validator: validateIdCard }],
         gender: [{ required: true, message: '请选择性别', trigger: 'change' }]
-      }
+      },
+      rechargeDialogVisible: false,
+      qrDialogVisible: false,
+      rechargeOptions: [50, 100, 200, 500, 1000],
+      rechargeAmount: 100,
+      rechargeSecondsLeft: 3,
+      rechargeSuccess: false,
+      rechargeTimer: null
+    }
+  },
+  computed: {
+    qrCodeUrl() {
+      const content = `hotel-recharge:${this.form.username || 'user'}:${this.rechargeAmount}`
+      return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(content)}`
     }
   },
   created() {
     this.fetchProfileData()
+  },
+  beforeDestroy() {
+    this.clearRechargeTimer()
   },
   methods: {
     fetchProfileData() {
@@ -129,6 +178,50 @@ export default {
           })
       })
     },
+    openRechargeDialog() {
+      this.rechargeAmount = this.rechargeOptions[0]
+      this.rechargeDialogVisible = true
+    },
+    handleRechargeConfirm() {
+      this.rechargeDialogVisible = false
+      this.qrDialogVisible = true
+      this.rechargeSuccess = false
+      this.rechargeSecondsLeft = 3
+      this.clearRechargeTimer()
+      this.rechargeTimer = setInterval(() => {
+        if (this.rechargeSecondsLeft > 1) {
+          this.rechargeSecondsLeft -= 1
+          return
+        }
+        this.clearRechargeTimer()
+        this.finishRecharge()
+      }, 1000)
+    },
+    finishRecharge() {
+      rechargeProfile({ amount: this.rechargeAmount }).then(res => {
+        const data = res.data || {}
+        this.form.balance = Number(data.balance || this.form.balance)
+        this.rechargeSuccess = true
+        this.$message.success('充值成功')
+      })
+    },
+    handleRechargeCancel() {
+      this.clearRechargeTimer()
+      this.qrDialogVisible = false
+      this.rechargeSuccess = false
+      this.rechargeSecondsLeft = 3
+    },
+    handleRechargeBack() {
+      this.qrDialogVisible = false
+      this.rechargeSuccess = false
+      this.rechargeSecondsLeft = 3
+    },
+    clearRechargeTimer() {
+      if (this.rechargeTimer) {
+        clearInterval(this.rechargeTimer)
+        this.rechargeTimer = null
+      }
+    },
     roleLabel(value) {
       return getRoleLabel(value)
     },
@@ -142,5 +235,44 @@ export default {
 <style lang="scss" scoped>
 .profile-form {
   max-width: 560px;
+}
+
+.balance-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 4px;
+}
+
+.qr-image {
+  width: 220px;
+  height: 220px;
+  border: 1px solid #dcdfe6;
+}
+
+.qr-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  font-size: 13px;
+}
+
+.qr-tip {
+  margin-top: 12px;
+  color: #606266;
+}
+
+.qr-tip.success {
+  color: #67c23a;
+  font-weight: 600;
 }
 </style>
