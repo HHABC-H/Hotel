@@ -13,7 +13,7 @@ export default {
   created() {
     const role = (this.roles && this.roles[0]) || ''
     if (role === 'CLIENT') {
-      this.$router.replace('/client/orders')
+      this.$router.replace('/login')
       return
     }
     if (role === 'ADMIN' || role === 'RECEPTIONIST') {

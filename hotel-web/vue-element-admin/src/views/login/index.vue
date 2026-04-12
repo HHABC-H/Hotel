@@ -5,6 +5,7 @@
         <div class="brand-title">秋暮酒店</div>
         <div class="brand-subtitle">品质客房 · 在线预订</div>
       </div>
+
       <div class="topbar-right">
         <el-input
           v-model="keyword"
@@ -13,23 +14,49 @@
           placeholder="搜索房间号 / 房型"
           prefix-icon="el-icon-search"
         />
-        <el-button type="primary" icon="el-icon-user" @click="openLoginDialog">登录</el-button>
+
+        <template v-if="!token">
+          <el-button type="primary" icon="el-icon-user" @click="openLoginDialog">登录</el-button>
+        </template>
+
+        <template v-else-if="isClientLoggedIn">
+          <span class="welcome-text">你好，{{ currentUserName }}</span>
+          <el-button plain @click="openMyOrdersDialog">我的订单</el-button>
+          <el-button plain @click="openProfileDialog">个人中心</el-button>
+          <el-button type="danger" plain @click="handleLogout">退出</el-button>
+        </template>
+
+        <template v-else>
+          <span class="welcome-text">你好，{{ currentUserName }}</span>
+          <el-button type="primary" @click="goToBackOffice">进入后台</el-button>
+          <el-button type="danger" plain @click="handleLogout">退出</el-button>
+        </template>
       </div>
     </header>
 
     <section class="banner">
       <div class="banner-content">
         <h2>精选房型，在线选房</h2>
-        <p>浏览房间详情、价格和房态，登录后即可下单预订。</p>
+        <p>浏览房间详情、价格和房态，登录后可直接预订并支付。</p>
       </div>
     </section>
 
     <section class="room-section">
-      <div class="section-title">客房推荐</div>
+      <div class="section-head">
+        <div class="section-title">客房推荐</div>
+        <div class="section-actions">
+          <el-button size="mini" :type="searchMode === 'available' ? 'success' : 'default'" @click="showAvailableRooms">
+            查询空闲房间
+          </el-button>
+          <el-button size="mini" @click="showAllRooms">全部房间</el-button>
+        </div>
+      </div>
+
       <div v-if="roomLoading" class="loading-wrap">
         <i class="el-icon-loading" />
         <span>正在加载房间信息...</span>
       </div>
+
       <div v-else class="room-grid">
         <div
           v-for="room in filteredRooms"
@@ -50,9 +77,15 @@
               <div class="room-price">{{ formatPrice(room.referencePrice || room.price) }}<span>/晚</span></div>
               <el-tag size="mini" :type="statusTagType(room.status)">{{ roomStatusLabel(room.status) }}</el-tag>
             </div>
+            <div class="room-actions">
+              <el-button type="text" @click.stop="openDetailDialog(room)">查看详情</el-button>
+              <el-button v-if="isClientLoggedIn" type="text" @click.stop="openBookingDialog(room)">立即预订</el-button>
+              <el-button v-else type="text" @click.stop="openLoginDialog">登录后预订</el-button>
+            </div>
           </div>
         </div>
       </div>
+
       <div v-if="!roomLoading && !filteredRooms.length" class="empty-wrap">
         暂无符合条件的房间
       </div>
@@ -84,24 +117,12 @@
 
     <el-dialog title="注册账号" :visible.sync="registerDialogVisible" width="520px" @closed="resetRegisterForm">
       <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" label-width="92px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="registerForm.username" />
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="registerForm.password" type="password" show-password />
-        </el-form-item>
-        <el-form-item label="确认密码" prop="confirmPassword">
-          <el-input v-model="registerForm.confirmPassword" type="password" show-password />
-        </el-form-item>
-        <el-form-item label="真实姓名" prop="realName">
-          <el-input v-model="registerForm.realName" />
-        </el-form-item>
-        <el-form-item label="手机号" prop="phone">
-          <el-input v-model="registerForm.phone" />
-        </el-form-item>
-        <el-form-item label="身份证号" prop="idCard">
-          <el-input v-model="registerForm.idCard" />
-        </el-form-item>
+        <el-form-item label="用户名" prop="username"><el-input v-model="registerForm.username" /></el-form-item>
+        <el-form-item label="密码" prop="password"><el-input v-model="registerForm.password" type="password" show-password /></el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword"><el-input v-model="registerForm.confirmPassword" type="password" show-password /></el-form-item>
+        <el-form-item label="真实姓名" prop="realName"><el-input v-model="registerForm.realName" /></el-form-item>
+        <el-form-item label="手机号" prop="phone"><el-input v-model="registerForm.phone" /></el-form-item>
+        <el-form-item label="身份证号" prop="idCard"><el-input v-model="registerForm.idCard" /></el-form-item>
         <el-form-item label="性别" prop="gender">
           <el-select v-model="registerForm.gender" placeholder="请选择">
             <el-option label="男" value="M" />
@@ -133,32 +154,106 @@
       </div>
       <span slot="footer">
         <el-button @click="detailDialogVisible = false">关闭</el-button>
-        <el-button type="primary" @click="openLoginDialog">登录后预订</el-button>
+        <el-button v-if="isClientLoggedIn" type="primary" @click="openBookingFromDetail">立即预订</el-button>
+        <el-button v-else type="primary" @click="openLoginDialog">登录后预订</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="提交预订" :visible.sync="bookingDialogVisible" width="520px" @closed="handleBookingDialogClosed">
+      <el-form ref="bookingFormRef" :model="bookingForm" :rules="bookingRules" label-width="100px">
+        <el-form-item label="房间号"><el-input :value="selectedRoom ? selectedRoom.roomNumber : ''" disabled /></el-form-item>
+        <el-form-item label="房型"><el-input :value="selectedRoom ? selectedRoom.roomTypeName : ''" disabled /></el-form-item>
+        <el-form-item label="入住日期" prop="checkInDate">
+          <el-date-picker v-model="bookingForm.checkInDate" type="date" value-format="yyyy-MM-dd" placeholder="请选择入住日期" style="width: 100%;" />
+        </el-form-item>
+        <el-form-item label="退房日期" prop="checkOutDate">
+          <el-date-picker v-model="bookingForm.checkOutDate" type="date" value-format="yyyy-MM-dd" placeholder="请选择退房日期" style="width: 100%;" />
+        </el-form-item>
+        <el-form-item label="备注"><el-input v-model="bookingForm.remark" type="textarea" :rows="3" placeholder="选填" /></el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="bookingDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="bookingSubmitting" @click="handleConfirmBooking">确认预订</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="订单支付" :visible.sync="payDialogVisible" width="520px">
+      <el-alert type="info" :closable="false" title="预订已创建，请完成支付。支付完成后会自动刷新房间状态。" style="margin-bottom: 16px;" />
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="订单号">{{ payContext.orderNumber || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="房间号">{{ payContext.roomNumber || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="房型">{{ payContext.roomTypeName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="入住日期">{{ payContext.checkInDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="退房日期">{{ payContext.checkOutDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="应付金额">{{ formatPrice(payContext.totalAmount) }}</el-descriptions-item>
+      </el-descriptions>
+      <span slot="footer" class="dialog-footer">
+        <el-button :loading="cancelSubmitting" @click="handleCancelNow">取消订单</el-button>
+        <el-button @click="payDialogVisible = false">稍后支付</el-button>
+        <el-button type="primary" :loading="paySubmitting" @click="handlePayNow">立即支付</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="我的订单" :visible.sync="ordersDialogVisible" width="1080px">
+      <el-table v-loading="ordersLoading" :data="ordersData" border>
+        <el-table-column prop="orderNumber" label="订单号" min-width="190" />
+        <el-table-column label="下单时间" min-width="170"><template slot-scope="scope">{{ formatDateTime(scope.row.createTime) }}</template></el-table-column>
+        <el-table-column prop="roomNumber" label="房间号" min-width="110" />
+        <el-table-column prop="roomTypeName" label="房型" min-width="140" />
+        <el-table-column prop="checkInDate" label="入住日期" min-width="120" />
+        <el-table-column prop="checkOutDate" label="退房日期" min-width="120" />
+        <el-table-column label="总金额" min-width="110"><template slot-scope="scope">{{ formatPrice(scope.row.totalAmount) }}</template></el-table-column>
+        <el-table-column label="状态" min-width="120"><template slot-scope="scope">{{ orderStatusLabel(scope.row.status) }}</template></el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
+          <template slot-scope="scope">
+            <el-button v-if="isOrderPayable(scope.row)" type="text" :loading="orderActionLoading[scope.row.id] === 'pay'" @click="handleOrderPay(scope.row)">立即支付</el-button>
+            <el-button v-if="isOrderCancelable(scope.row)" type="text" :loading="orderActionLoading[scope.row.id] === 'cancel'" @click="handleOrderCancel(scope.row)">取消订单</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="fetchMyOrders">刷新</el-button>
+        <el-button @click="ordersDialogVisible = false">关闭</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="个人中心" :visible.sync="profileDialogVisible" width="560px" @open="fetchProfileData">
+      <el-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-width="100px" class="profile-form">
+        <el-form-item label="用户名"><el-input v-model="profileForm.username" disabled /></el-form-item>
+        <el-form-item label="角色"><el-input :value="roleLabel(profileForm.roleCode)" disabled /></el-form-item>
+        <el-form-item label="账户余额"><el-input :value="formatPrice(profileForm.balance)" disabled /></el-form-item>
+        <el-form-item label="真实姓名" prop="realName"><el-input v-model="profileForm.realName" /></el-form-item>
+        <el-form-item label="手机号" prop="phone"><el-input v-model="profileForm.phone" /></el-form-item>
+        <el-form-item label="身份证号" prop="idCard"><el-input v-model="profileForm.idCard" /></el-form-item>
+        <el-form-item label="性别" prop="gender">
+          <el-select v-model="profileForm.gender" placeholder="请选择">
+            <el-option label="男" value="M" />
+            <el-option label="女" value="F" />
+            <el-option label="未知" value="UNKNOWN" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="profileDialogVisible = false">关闭</el-button>
+        <el-button type="primary" :loading="profileSaving" @click="handleSaveProfile">保存</el-button>
       </span>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { browseRooms, getRoomDetailForClient } from '@/api/rooms'
+import { getToken } from '@/utils/auth'
+import { browseRooms, listAvailableRooms, getRoomDetailForClient } from '@/api/rooms'
 import { register } from '@/api/auth'
-import { getRoomStatusLabel } from '@/constants/dict'
+import { createBooking, listMyBookings, payBooking, cancelBooking } from '@/api/bookings'
+import { getProfile, updateProfile } from '@/api/profile'
+import { getRoomStatusLabel, getOrderStatusLabel, getRoleLabel } from '@/constants/dict'
 import { validIdCardCN, validPhoneCN } from '@/utils/validate'
 
-const createLoginForm = () => ({
-  username: '',
-  password: ''
-})
-
-const createRegisterForm = () => ({
-  username: '',
-  password: '',
-  confirmPassword: '',
-  realName: '',
-  phone: '',
-  idCard: '',
-  gender: 'UNKNOWN'
-})
+const createLoginForm = () => ({ username: '', password: '' })
+const createRegisterForm = () => ({ username: '', password: '', confirmPassword: '', realName: '', phone: '', idCard: '', gender: 'UNKNOWN' })
+const createBookingForm = () => ({ roomId: undefined, checkInDate: '', checkOutDate: '', remark: '' })
+const createProfileForm = () => ({ username: '', roleCode: '', balance: 0, realName: '', phone: '', idCard: '', gender: 'UNKNOWN' })
 
 const fallbackRoomImages = [
   'https://images.unsplash.com/photo-1631049552057-403cdb8f0658?auto=format&fit=crop&w=1200&q=80',
@@ -182,7 +277,6 @@ export default {
       }
       callback()
     }
-
     const validatePasswordConfirm = (rule, value, callback) => {
       if (!value) {
         callback(new Error('请确认密码'))
@@ -194,7 +288,6 @@ export default {
       }
       callback()
     }
-
     const validateIdCard = (rule, value, callback) => {
       if (!value) {
         callback()
@@ -211,41 +304,71 @@ export default {
       roomLoading: false,
       roomList: [],
       keyword: '',
-
+      searchMode: 'browse',
       detailDialogVisible: false,
       detailLoading: false,
       detailRoom: {},
-
+      bookingDialogVisible: false,
+      bookingSubmitting: false,
+      selectedRoom: null,
+      bookingForm: createBookingForm(),
+      bookingRules: {
+        checkInDate: [{ required: true, message: '请选择入住日期', trigger: 'change' }],
+        checkOutDate: [{ required: true, message: '请选择退房日期', trigger: 'change' }]
+      },
+      payDialogVisible: false,
+      paySubmitting: false,
+      cancelSubmitting: false,
+      payContext: { orderId: undefined, orderNumber: '', roomNumber: '', roomTypeName: '', checkInDate: '', checkOutDate: '', totalAmount: '' },
+      ordersDialogVisible: false,
+      ordersLoading: false,
+      ordersData: [],
+      orderActionLoading: {},
+      profileDialogVisible: false,
+      profileSaving: false,
+      profileForm: createProfileForm(),
+      profileRules: {
+        realName: [{ required: true, message: '请填写真实姓名', trigger: 'blur' }],
+        phone: [{ required: true, trigger: 'blur', validator: validatePhone }],
+        idCard: [{ trigger: 'blur', validator: validateIdCard }],
+        gender: [{ required: true, message: '请选择性别', trigger: 'change' }]
+      },
       loginDialogVisible: false,
       loginLoading: false,
       registerDialogVisible: false,
       registerLoading: false,
-
       loginForm: createLoginForm(),
       registerForm: createRegisterForm(),
-
       loginRules: {
         username: [{ required: true, message: '请填写用户名', trigger: 'blur' }],
         password: [{ required: true, message: '请填写密码', trigger: 'blur' }]
       },
       registerRules: {
         username: [{ required: true, message: '请填写用户名', trigger: 'blur' }],
-        password: [
-          { required: true, message: '请填写密码', trigger: 'blur' },
-          { min: 6, message: '密码至少6位', trigger: 'blur' }
-        ],
+        password: [{ required: true, message: '请填写密码', trigger: 'blur' }, { min: 6, message: '密码至少6位', trigger: 'blur' }],
         confirmPassword: [{ trigger: 'blur', validator: validatePasswordConfirm }],
         realName: [{ required: true, message: '请填写真实姓名', trigger: 'blur' }],
         phone: [{ trigger: 'blur', validator: validatePhone }],
         idCard: [{ trigger: 'blur', validator: validateIdCard }],
         gender: [{ required: true, message: '请选择性别', trigger: 'change' }]
-      },
-
-      redirect: undefined,
-      otherQuery: {}
+      }
     }
   },
   computed: {
+    token() {
+      return this.$store.getters.token
+    },
+    userRole() {
+      const roles = this.$store.getters.roles || []
+      return roles[0] || ''
+    },
+    isClientLoggedIn() {
+      return !!this.token && this.userRole === 'CLIENT'
+    },
+    currentUserName() {
+      const userInfo = (this.$store.state.user && this.$store.state.user.userInfo) || {}
+      return userInfo.realName || userInfo.username || this.$store.getters.name || '用户'
+    },
     filteredRooms() {
       const keyword = this.keyword.trim().toLowerCase()
       if (!keyword) {
@@ -258,29 +381,23 @@ export default {
       })
     }
   },
-  watch: {
-    $route: {
-      handler(route) {
-        const query = route.query
-        if (query) {
-          this.redirect = query.redirect
-          this.otherQuery = this.getOtherQuery(query)
-        }
-      },
-      immediate: true
-    }
-  },
   created() {
     this.fetchRooms()
+    this.ensureUserInfoLoaded()
   },
   methods: {
-    getOtherQuery(query) {
-      return Object.keys(query).reduce((acc, cur) => {
-        if (cur !== 'redirect') {
-          acc[cur] = query[cur]
-        }
-        return acc
-      }, {})
+    async ensureUserInfoLoaded() {
+      if (!getToken()) {
+        return
+      }
+      if ((this.$store.getters.roles || []).length > 0) {
+        return
+      }
+      try {
+        await this.$store.dispatch('user/getInfo')
+      } catch (e) {
+        await this.$store.dispatch('user/resetToken')
+      }
     },
     normalizeListData(data) {
       if (Array.isArray(data)) {
@@ -294,13 +411,21 @@ export default {
     async fetchRooms() {
       this.roomLoading = true
       try {
-        const res = await browseRooms()
-        this.roomList = this.normalizeListData(res.data)
+        const response = this.searchMode === 'available' ? await listAvailableRooms() : await browseRooms()
+        this.roomList = this.normalizeListData(response.data)
       } catch (e) {
-        this.$message.error(e?.message || '加载房间失败')
+        this.$message.error(e && e.message ? e.message : '加载房间失败')
       } finally {
         this.roomLoading = false
       }
+    },
+    showAvailableRooms() {
+      this.searchMode = 'available'
+      this.fetchRooms()
+    },
+    showAllRooms() {
+      this.searchMode = 'browse'
+      this.fetchRooms()
     },
     roomImage(room) {
       if (!room) {
@@ -318,16 +443,16 @@ export default {
     roomStatusLabel(value) {
       return getRoomStatusLabel(value)
     },
+    orderStatusLabel(value) {
+      return getOrderStatusLabel(value)
+    },
+    roleLabel(value) {
+      return getRoleLabel(value)
+    },
     statusTagType(status) {
-      if (status === 'OCCUPIED') {
-        return 'danger'
-      }
-      if (status === 'RESERVED') {
-        return 'warning'
-      }
-      if (status === 'MAINTENANCE') {
-        return 'info'
-      }
+      if (status === 'OCCUPIED') return 'danger'
+      if (status === 'RESERVED') return 'warning'
+      if (status === 'MAINTENANCE') return 'info'
       return 'success'
     },
     formatPrice(value) {
@@ -336,6 +461,12 @@ export default {
       }
       const num = Number(value)
       return Number.isNaN(num) ? value : `¥${num.toFixed(2)}`
+    },
+    formatDateTime(value) {
+      if (!value) {
+        return '-'
+      }
+      return String(value).replace('T', ' ')
     },
     openLoginDialog() {
       this.loginDialogVisible = true
@@ -359,27 +490,28 @@ export default {
       }
     },
     handleLogin() {
-      this.$refs.loginFormRef.validate(valid => {
-        if (!valid) {
-          return false
-        }
+      this.$refs.loginFormRef.validate(async valid => {
+        if (!valid) return false
         this.loginLoading = true
-        this.$store.dispatch('user/login', this.loginForm)
-          .then(() => {
-            this.$message.success('登录成功')
-            this.loginDialogVisible = false
-            this.$router.push({ path: this.redirect || '/', query: this.otherQuery })
-          })
-          .finally(() => {
-            this.loginLoading = false
-          })
+        try {
+          await this.$store.dispatch('user/login', this.loginForm)
+          const info = await this.$store.dispatch('user/getInfo')
+          const role = (info.roles && info.roles[0]) || ''
+          this.$message.success('登录成功')
+          this.loginDialogVisible = false
+          if (role === 'CLIENT') {
+            this.fetchRooms()
+            return
+          }
+          this.$router.push('/')
+        } finally {
+          this.loginLoading = false
+        }
       })
     },
     handleRegister() {
       this.$refs.registerFormRef.validate(async valid => {
-        if (!valid) {
-          return false
-        }
+        if (!valid) return false
         this.registerLoading = true
         try {
           await register({
@@ -406,10 +538,264 @@ export default {
         const res = await getRoomDetailForClient(room.id)
         this.detailRoom = Object.assign({}, room, res.data || {})
       } catch (e) {
-        this.$message.error(e?.message || '加载房间详情失败')
+        this.$message.error(e && e.message ? e.message : '加载房间详情失败')
       } finally {
         this.detailLoading = false
       }
+    },
+    openBookingFromDetail() {
+      if (!this.detailRoom || !this.detailRoom.id) {
+        return
+      }
+      this.detailDialogVisible = false
+      this.openBookingDialog(this.detailRoom)
+    },
+    openBookingDialog(room) {
+      if (!this.isClientLoggedIn) {
+        this.$message.warning('请先登录顾客账号再预订')
+        this.openLoginDialog()
+        return
+      }
+      if (room.status && room.status !== 'AVAILABLE') {
+        this.$message.warning('该房间当前不可预订，请选择空闲房间')
+        return
+      }
+      this.selectedRoom = room
+      this.bookingForm = { roomId: room.id, checkInDate: '', checkOutDate: '', remark: '' }
+      this.bookingDialogVisible = true
+    },
+    handleBookingDialogClosed() {
+      this.bookingSubmitting = false
+      if (this.$refs.bookingFormRef) {
+        this.$refs.bookingFormRef.clearValidate()
+      }
+    },
+    isValidDateRange() {
+      if (!this.bookingForm.checkInDate || !this.bookingForm.checkOutDate) {
+        return false
+      }
+      return this.bookingForm.checkInDate < this.bookingForm.checkOutDate
+    },
+    extractOrderFromBookingResponse(data) {
+      const payload = (data && data.order) || data || {}
+      return {
+        orderId: payload.id || payload.orderId || undefined,
+        orderNumber: payload.orderNumber || '',
+        roomNumber: payload.roomNumber || (this.selectedRoom && this.selectedRoom.roomNumber) || '-',
+        roomTypeName: payload.roomTypeName || (this.selectedRoom && this.selectedRoom.roomTypeName) || '-',
+        checkInDate: payload.checkInDate || this.bookingForm.checkInDate,
+        checkOutDate: payload.checkOutDate || this.bookingForm.checkOutDate,
+        totalAmount: payload.totalAmount || (this.selectedRoom && (this.selectedRoom.referencePrice || this.selectedRoom.price)) || ''
+      }
+    },
+    handleConfirmBooking() {
+      this.$refs.bookingFormRef.validate(async valid => {
+        if (!valid) return false
+        if (!this.isValidDateRange()) {
+          this.$message.warning('退房日期必须晚于入住日期')
+          return
+        }
+        this.bookingSubmitting = true
+        try {
+          const res = await createBooking(this.bookingForm)
+          this.payContext = this.extractOrderFromBookingResponse(res.data)
+          this.bookingDialogVisible = false
+          this.payDialogVisible = true
+          this.$message.success('预订成功')
+          this.fetchMyOrders()
+        } finally {
+          this.bookingSubmitting = false
+        }
+      })
+    },
+    handlePayNow() {
+      if (!this.payContext.orderId) {
+        this.$message.warning('未定位到订单ID，请在我的订单中完成支付')
+        return
+      }
+      this.paySubmitting = true
+      payBooking(this.payContext.orderId)
+        .then(() => {
+          this.$message.success('支付成功，房间状态已刷新')
+          this.payDialogVisible = false
+          this.searchMode = 'available'
+          this.fetchRooms()
+          this.fetchMyOrders()
+        })
+        .finally(() => {
+          this.paySubmitting = false
+        })
+    },
+    handleCancelNow() {
+      if (!this.payContext.orderId) {
+        this.$message.warning('未定位到订单ID，无法取消')
+        return
+      }
+      this.cancelSubmitting = true
+      cancelBooking(this.payContext.orderId)
+        .then(() => {
+          this.$message.success('订单已取消')
+          this.payDialogVisible = false
+          this.fetchRooms()
+          this.fetchMyOrders()
+        })
+        .finally(() => {
+          this.cancelSubmitting = false
+        })
+    },
+    async openMyOrdersDialog() {
+      if (!this.isClientLoggedIn) {
+        this.$message.warning('请先登录顾客账号')
+        this.openLoginDialog()
+        return
+      }
+      this.ordersDialogVisible = true
+      await this.fetchMyOrders()
+    },
+    async fetchMyOrders() {
+      if (!this.isClientLoggedIn) {
+        return
+      }
+      this.ordersLoading = true
+      try {
+        const res = await listMyBookings()
+        const records = this.normalizeListData(res.data)
+        this.ordersData = await this.enrichOrderRoomInfo(records)
+      } finally {
+        this.ordersLoading = false
+      }
+    },
+    async enrichOrderRoomInfo(records) {
+      if (!records.length) {
+        return records
+      }
+      const roomIds = Array.from(new Set(records.map(item => item.roomId).filter(Boolean)))
+      const roomMap = {}
+      await Promise.all(roomIds.map(async roomId => {
+        try {
+          const res = await getRoomDetailForClient(roomId)
+          roomMap[roomId] = res.data || {}
+        } catch (e) {
+          roomMap[roomId] = {}
+        }
+      }))
+      return records.map(item => {
+        const room = roomMap[item.roomId] || {}
+        return {
+          ...item,
+          roomNumber: item.roomNumber || room.roomNumber || '-',
+          roomTypeName: item.roomTypeName || room.roomTypeName || '-'
+        }
+      })
+    },
+    isOrderPayable(row) {
+      return row.status === 'UNPAID'
+    },
+    isOrderCancelable(row) {
+      return ['UNPAID', 'PAID'].includes(row.status) && this.isCheckoutDateNotPassed(row.checkOutDate)
+    },
+    isCheckoutDateNotPassed(checkOutDate) {
+      if (!checkOutDate) {
+        return false
+      }
+      const endDate = new Date(`${checkOutDate}T23:59:59`)
+      return Date.now() <= endDate.getTime()
+    },
+    setOrderActionLoading(orderId, action) {
+      this.$set(this.orderActionLoading, orderId, action)
+    },
+    clearOrderActionLoading(orderId) {
+      this.$delete(this.orderActionLoading, orderId)
+    },
+    handleOrderPay(row) {
+      this.setOrderActionLoading(row.id, 'pay')
+      payBooking(row.id)
+        .then(() => {
+          this.$message.success('支付成功')
+          this.fetchMyOrders()
+          this.fetchRooms()
+        })
+        .finally(() => {
+          this.clearOrderActionLoading(row.id)
+        })
+    },
+    handleOrderCancel(row) {
+      this.$confirm('确认取消该订单吗？', '提示', { type: 'warning' })
+        .then(() => {
+          this.setOrderActionLoading(row.id, 'cancel')
+          return cancelBooking(row.id)
+        })
+        .then(() => {
+          this.$message.success('订单已取消')
+          this.fetchMyOrders()
+          this.fetchRooms()
+        })
+        .finally(() => {
+          this.clearOrderActionLoading(row.id)
+        })
+    },
+    openProfileDialog() {
+      if (!this.isClientLoggedIn) {
+        this.$message.warning('请先登录顾客账号')
+        this.openLoginDialog()
+        return
+      }
+      this.profileDialogVisible = true
+    },
+    async fetchProfileData() {
+      if (!this.isClientLoggedIn) {
+        return
+      }
+      const res = await getProfile()
+      const data = res.data || {}
+      this.profileForm = {
+        username: data.username || '',
+        roleCode: data.role || '',
+        balance: Number(data.balance || 0),
+        realName: data.realName || '',
+        phone: data.phone || '',
+        idCard: data.idCard || '',
+        gender: data.gender || 'UNKNOWN'
+      }
+      this.$nextTick(() => {
+        if (this.$refs.profileFormRef) {
+          this.$refs.profileFormRef.clearValidate()
+        }
+      })
+    },
+    handleSaveProfile() {
+      this.$refs.profileFormRef.validate(valid => {
+        if (!valid) return false
+        const payload = {
+          realName: this.profileForm.realName,
+          phone: this.profileForm.phone,
+          idCard: this.profileForm.idCard,
+          gender: this.profileForm.gender
+        }
+        this.profileSaving = true
+        updateProfile(payload)
+          .then(async() => {
+            this.$message.success('个人信息已更新')
+            await this.$store.dispatch('user/getInfo')
+            this.fetchProfileData()
+          })
+          .finally(() => {
+            this.profileSaving = false
+          })
+      })
+    },
+    async handleLogout() {
+      await this.$store.dispatch('user/logout')
+      this.ordersDialogVisible = false
+      this.profileDialogVisible = false
+      this.payDialogVisible = false
+      this.bookingDialogVisible = false
+      this.$message.success('已退出登录')
+      this.$router.replace('/login')
+      this.fetchRooms()
+    },
+    goToBackOffice() {
+      this.$router.push('/')
     }
   }
 }
@@ -450,11 +836,16 @@ export default {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .search-input {
   width: 320px;
+}
+
+.welcome-text {
+  color: #606266;
+  font-size: 13px;
 }
 
 .banner {
@@ -499,11 +890,22 @@ export default {
   margin: 24px 32px 0;
 }
 
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
 .section-title {
   font-size: 20px;
   font-weight: 700;
   color: #303133;
-  margin-bottom: 18px;
+}
+
+.section-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .loading-wrap,
@@ -546,7 +948,7 @@ export default {
 }
 
 .room-body {
-  padding: 12px 14px 14px;
+  padding: 12px 14px 12px;
 }
 
 .room-title {
@@ -595,6 +997,14 @@ export default {
   }
 }
 
+.room-actions {
+  margin-top: 6px;
+  border-top: 1px solid #f0f2f5;
+  padding-top: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+
 .switch-tip {
   color: #606266;
   font-size: 13px;
@@ -641,7 +1051,11 @@ export default {
   }
 }
 
-@media (max-width: 960px) {
+.profile-form {
+  max-width: 460px;
+}
+
+@media (max-width: 1160px) {
   .topbar {
     height: auto;
     padding: 14px 16px;
@@ -652,6 +1066,7 @@ export default {
 
   .topbar-right {
     width: 100%;
+    flex-wrap: wrap;
 
     .search-input {
       width: 100%;
@@ -673,6 +1088,12 @@ export default {
 
   .room-section {
     margin: 16px;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 
   .detail-wrap {
