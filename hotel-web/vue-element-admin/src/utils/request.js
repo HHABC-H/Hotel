@@ -8,6 +8,21 @@ const service = axios.create({
   timeout: 10000
 })
 
+const ERROR_MESSAGE_MAP = {
+  'Room already booked for this date range': '该时间段房间已被预订，请更换日期或房间',
+  'Insufficient balance': '余额不足，请先充值后支付',
+  'Room already booked for the renewed period': '续住失败：该时间段房间已被预订',
+  'Insufficient balance for renewal': '余额不足，无法完成续住支付'
+}
+
+function localizeErrorMessage(message) {
+  const text = String(message || '').trim()
+  if (!text) {
+    return '请求失败'
+  }
+  return ERROR_MESSAGE_MAP[text] || text
+}
+
 service.interceptors.request.use(
   config => {
     if (store.getters.token) {
@@ -24,8 +39,9 @@ service.interceptors.response.use(
   response => {
     const res = response.data
     if (res.code !== 200) {
+      const localizedMessage = localizeErrorMessage(res.message)
       Message({
-        message: res.message || '请求失败',
+        message: localizedMessage,
         type: 'error',
         duration: 5 * 1000
       })
@@ -41,12 +57,12 @@ service.interceptors.response.use(
           })
         })
       }
-      return Promise.reject(new Error(res.message || '请求失败'))
+      return Promise.reject(new Error(localizedMessage))
     }
     return res
   },
   error => {
-    const message = error.response?.data?.message || error.message || '网络错误'
+    const message = localizeErrorMessage(error.response?.data?.message || error.message || '网络错误')
     Message({
       message,
       type: 'error',

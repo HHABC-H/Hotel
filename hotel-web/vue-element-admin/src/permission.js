@@ -24,6 +24,13 @@ router.beforeEach(async(to, from, next) => {
     if (to.path === '/login') {
       const hasRoles = store.getters.roles && store.getters.roles.length > 0
       if (hasRoles) {
+        if (!(store.getters.permission_routes && store.getters.permission_routes.length > 0)) {
+          const accessRoutes = await store.dispatch('permission/generateRoutes', store.getters.roles)
+          router.addRoutes(accessRoutes)
+          next({ ...to, replace: true })
+          NProgress.done()
+          return
+        }
         if ((store.getters.roles || []).includes('CLIENT')) {
           next()
         } else {
@@ -52,6 +59,12 @@ router.beforeEach(async(to, from, next) => {
       // determine whether the user has obtained his permission roles through getInfo
       const hasRoles = store.getters.roles && store.getters.roles.length > 0
       if (hasRoles) {
+        if (!(store.getters.permission_routes && store.getters.permission_routes.length > 0)) {
+          const accessRoutes = await store.dispatch('permission/generateRoutes', store.getters.roles)
+          router.addRoutes(accessRoutes)
+          next({ ...to, replace: true })
+          return
+        }
         next()
       } else {
         try {
