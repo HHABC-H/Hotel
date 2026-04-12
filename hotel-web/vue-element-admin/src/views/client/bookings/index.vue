@@ -15,6 +15,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="totalAmount" label="总金额" min-width="100" />
+        <el-table-column prop="remark" label="备注" min-width="180" />
       </el-table>
 
       <div class="action-wrap">

@@ -34,17 +34,7 @@
             {{ orderStatusLabel(scope.row.status) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="470" fixed="right">
-          <template slot-scope="scope">
-            <el-button type="text" @click="openDetailDialog(scope.row)">详情</el-button>
-            <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
-            <el-button type="text" :disabled="!canPay(scope.row)" @click="handlePay(scope.row)">支付</el-button>
-            <el-button type="text" :disabled="!canRenew(scope.row)" @click="openRenewDialog(scope.row)">续房</el-button>
-            <el-button type="text" :disabled="!canCheckIn(scope.row)" @click="handleCheckIn(scope.row)">入住</el-button>
-            <el-button type="text" :disabled="!canCheckOut(scope.row)" @click="handleCheckOut(scope.row)">退房</el-button>
-            <el-button type="text" class="danger-btn" :disabled="!canCancel(scope.row)" @click="handleCancel(scope.row)">取消</el-button>
-          </template>
-        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="220" />
       </el-table>
 
       <div class="pagination-wrapper">

@@ -24,6 +24,7 @@
             {{ orderStatusLabel(scope.row.status) }}
           </template>
         </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="180" />
       </el-table>
 
       <div class="action-wrap">

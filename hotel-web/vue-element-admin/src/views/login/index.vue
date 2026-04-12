@@ -204,12 +204,7 @@
         <el-table-column prop="checkOutDate" label="退房日期" min-width="120" />
         <el-table-column label="总金额" min-width="110"><template slot-scope="scope">{{ formatPrice(scope.row.totalAmount) }}</template></el-table-column>
         <el-table-column label="状态" min-width="120"><template slot-scope="scope">{{ orderStatusLabel(scope.row.status) }}</template></el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template slot-scope="scope">
-            <el-button v-if="isOrderPayable(scope.row)" type="text" :loading="orderActionLoading[scope.row.id] === 'pay'" @click="handleOrderPay(scope.row)">立即支付</el-button>
-            <el-button v-if="isOrderCancelable(scope.row)" type="text" :loading="orderActionLoading[scope.row.id] === 'cancel'" @click="handleOrderCancel(scope.row)">取消订单</el-button>
-          </template>
-        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="180" />
       </el-table>
       <span slot="footer" class="dialog-footer">
         <el-button @click="fetchMyOrders">刷新</el-button>
