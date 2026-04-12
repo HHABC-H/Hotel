@@ -71,7 +71,22 @@ export const asyncRoutes = [
         path: 'index',
         component: () => import('@/views/dashboard/index'),
         name: 'Dashboard',
-        meta: { title: '仪表盘', icon: 'dashboard', affix: true, roles: ['ADMIN', 'RECEPTIONIST'] }
+        meta: { title: '主页', icon: 'dashboard', affix: true, roles: ['ADMIN', 'RECEPTIONIST'] }
+      }
+    ]
+  },
+  {
+    path: '/customer',
+    component: Layout,
+    redirect: '/customer/manage',
+    name: 'Customer',
+    meta: { title: '顾客管理', icon: 'el-icon-user-solid', roles: ['ADMIN', 'RECEPTIONIST'] },
+    children: [
+      {
+        path: 'manage',
+        component: () => import('@/views/customer/manage/index'),
+        name: 'CustomerManage',
+        meta: { title: '顾客管理', icon: 'el-icon-user', roles: ['ADMIN', 'RECEPTIONIST'] }
       }
     ]
   },
