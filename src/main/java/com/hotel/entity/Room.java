@@ -27,6 +27,18 @@ public class Room {
     @TableField(exist = false)
     private BigDecimal referencePrice;
 
+    @TableField(exist = false)
+    private Integer roomTypeCapacity;
+
+    @TableField(exist = false)
+    private String roomTypeBedType;
+
+    @TableField(exist = false)
+    private BigDecimal roomTypeArea;
+
+    @TableField(exist = false)
+    private String roomTypeDescription;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

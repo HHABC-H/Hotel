@@ -39,9 +39,9 @@ public class SecurityConfig {
                 .and()
                 .authorizeRequests()
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .antMatchers("/auth/login", "/error").permitAll()
+                .antMatchers("/auth/login", "/auth/register", "/error").permitAll()
 
-                .antMatchers(HttpMethod.GET, "/rooms/browse", "/rooms/*/detail", "/rooms/available").hasAnyRole("ADMIN", "RECEPTIONIST", "CLIENT")
+                .antMatchers(HttpMethod.GET, "/rooms/browse", "/rooms/*/detail", "/rooms/available").permitAll()
                 .antMatchers("/profile/**", "/auth/current-user").authenticated()
                 .antMatchers("/bookings/**").hasRole("CLIENT")
                 .antMatchers(HttpMethod.GET, "/orders/my").authenticated()

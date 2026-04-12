@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,6 +64,52 @@ public class AuthController {
     @PostMapping("/logout")
     public Result<?> logout() {
         return Result.success("登出成功", null);
+    }
+
+    @PostMapping("/register")
+    public Result<?> register(@RequestBody RegisterRequest request) {
+        if (request == null
+                || !StringUtils.hasText(request.getUsername())
+                || !StringUtils.hasText(request.getPassword())
+                || !StringUtils.hasText(request.getRealName())
+                || !StringUtils.hasText(request.getPhone())) {
+            return Result.error(400, "用户名、密码、姓名、手机号不能为空");
+        }
+        if (!request.getPhone().matches("^1\\d{10}$")) {
+            return Result.error(400, "手机号格式不正确");
+        }
+        if (StringUtils.hasText(request.getIdCard()) && !request.getIdCard().matches("^\\d{17}(\\d|X|x)$")) {
+            return Result.error(400, "身份证号格式不正确");
+        }
+        if (request.getPassword().length() < 6) {
+            return Result.error(400, "密码长度至少 6 位");
+        }
+        if (userService.getByUsername(request.getUsername().trim()) != null) {
+            return Result.error(400, "用户名已存在");
+        }
+        if (StringUtils.hasText(request.getIdCard())) {
+            boolean exists = userService.lambdaQuery().eq(User::getIdCard, request.getIdCard()).exists();
+            if (exists) {
+                return Result.error(400, "身份证号已存在");
+            }
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername().trim());
+        user.setPassword(DigestUtils.md5DigestAsHex(request.getPassword().getBytes(StandardCharsets.UTF_8)));
+        user.setRealName(request.getRealName().trim());
+        user.setPhone(request.getPhone().trim());
+        user.setIdCard(StringUtils.hasText(request.getIdCard()) ? request.getIdCard().trim() : null);
+        user.setGender(StringUtils.hasText(request.getGender()) ? request.getGender() : "UNKNOWN");
+        user.setRole(Constant.CLIENT_ROLE);
+        user.setStatus(Constant.STATUS_ENABLE);
+        user.setBalance(BigDecimal.ZERO);
+
+        boolean saved = userService.save(user);
+        if (!saved) {
+            return Result.error("注册失败");
+        }
+        return Result.success("注册成功", sanitizeUser(user));
     }
 
     @GetMapping("/current-user")
@@ -115,5 +162,15 @@ public class AuthController {
     public static class LoginRequest {
         private String username;
         private String password;
+    }
+
+    @Data
+    public static class RegisterRequest {
+        private String username;
+        private String password;
+        private String realName;
+        private String phone;
+        private String idCard;
+        private String gender;
     }
 }

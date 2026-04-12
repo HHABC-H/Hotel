@@ -192,6 +192,10 @@ public class RoomController {
             if (roomType != null) {
                 room.setRoomTypeName(roomType.getTypeName());
                 room.setReferencePrice(roomType.getPrice());
+                room.setRoomTypeCapacity(roomType.getCapacity());
+                room.setRoomTypeBedType(roomType.getBedType());
+                room.setRoomTypeArea(roomType.getArea());
+                room.setRoomTypeDescription(roomType.getDescription());
             }
         });
     }
