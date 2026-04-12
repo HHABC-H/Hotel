@@ -2,6 +2,8 @@ package com.hotel.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -18,6 +20,12 @@ public class Room {
     private Integer floor;
 
     private String status;
+
+    @TableField(exist = false)
+    private String roomTypeName;
+
+    @TableField(exist = false)
+    private BigDecimal referencePrice;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

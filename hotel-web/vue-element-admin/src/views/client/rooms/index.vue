@@ -8,9 +8,9 @@
           <el-select v-model="query.roomTypeId" placeholder="全部类型" clearable filterable style="width: 220px;">
             <el-option
               v-for="item in roomTypeOptions"
-              :key="item.id"
-              :label="item.typeName"
-              :value="item.id"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
             />
           </el-select>
         </el-form-item>
@@ -106,7 +106,6 @@
 
 <script>
 import { browseRooms, listAvailableRooms } from '@/api/rooms'
-import { listRoomTypes } from '@/api/roomTypes'
 import { createBooking, payBooking, cancelBooking } from '@/api/bookings'
 import { getRoomStatusLabel } from '@/constants/dict'
 
@@ -126,7 +125,6 @@ export default {
       paySubmitting: false,
       cancelSubmitting: false,
       tableData: [],
-      roomTypeOptions: [],
       query: {
         roomTypeId: undefined
       },
@@ -152,33 +150,54 @@ export default {
       }
     }
   },
+  computed: {
+    roomTypeOptions() {
+      const map = {}
+      this.tableData.forEach(item => {
+        const value = item.roomTypeId
+        if (value === undefined || value === null || map[value]) {
+          return
+        }
+        map[value] = {
+          value,
+          label: this.roomTypeName(value, item)
+        }
+      })
+      return Object.values(map)
+    }
+  },
   created() {
-    this.fetchRoomTypes()
     this.fetchData()
   },
   methods: {
     normalizeListData(data) {
       return Array.isArray(data) ? data : (data?.records || [])
     },
-    fetchRoomTypes() {
-      listRoomTypes({ pageNum: 1, pageSize: 1000, status: 1 })
-        .then(res => {
-          this.roomTypeOptions = this.normalizeListData(res.data)
-        })
-        .catch(() => {
-          this.roomTypeOptions = []
-        })
-    },
-    roomTypeName(roomTypeId) {
-      const found = this.roomTypeOptions.find(item => String(item.id) === String(roomTypeId))
-      return found?.typeName || `房型#${roomTypeId}`
+    roomTypeName(roomTypeId, row) {
+      if (row?.roomTypeName) {
+        return row.roomTypeName
+      }
+      if (row?.typeName) {
+        return row.typeName
+      }
+      const found = this.tableData.find(item => String(item.roomTypeId) === String(roomTypeId) && (item.roomTypeName || item.typeName))
+      if (found?.roomTypeName || found?.typeName) {
+        return found.roomTypeName || found.typeName
+      }
+      return `房型#${roomTypeId}`
     },
     roomReferencePrice(row) {
+      if (row?.referencePrice !== undefined && row?.referencePrice !== null && row?.referencePrice !== '') {
+        return row.referencePrice
+      }
       if (row?.price !== undefined && row?.price !== null && row?.price !== '') {
         return row.price
       }
-      const found = this.roomTypeOptions.find(item => String(item.id) === String(row?.roomTypeId))
-      return found?.price
+      const found = this.tableData.find(item =>
+        String(item.roomTypeId) === String(row?.roomTypeId) &&
+        (item.referencePrice !== undefined || item.price !== undefined)
+      )
+      return found?.referencePrice || found?.price
     },
     formatPrice(value) {
       if (value === undefined || value === null || value === '') {
@@ -251,7 +270,7 @@ export default {
         orderNumber: payload.orderNumber || '',
         roomNumber: payload.roomNumber || this.selectedRoom?.roomNumber || '',
         roomId: payload.roomId || this.bookingForm.roomId,
-        roomTypeName: payload.roomTypeName || this.roomTypeName(payload.roomTypeId || this.selectedRoom?.roomTypeId),
+        roomTypeName: payload.roomTypeName || this.roomTypeName(payload.roomTypeId || this.selectedRoom?.roomTypeId, this.selectedRoom),
         checkInDate: payload.checkInDate || this.bookingForm.checkInDate,
         checkOutDate: payload.checkOutDate || this.bookingForm.checkOutDate,
         totalAmount: payload.totalAmount || this.roomReferencePrice(this.selectedRoom),

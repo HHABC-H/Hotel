@@ -15,19 +15,15 @@
         </el-tooltip>
       </template>
 
-      <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="click">
+      <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="click" @command="handleCommand">
         <div class="avatar-wrapper">
           <img :src="avatar" class="user-avatar">
           <i class="el-icon-caret-bottom" />
         </div>
         <el-dropdown-menu slot="dropdown">
-          <router-link to="/profile/index">
-            <el-dropdown-item>个人资料</el-dropdown-item>
-          </router-link>
-          <router-link to="/">
-            <el-dropdown-item>首页</el-dropdown-item>
-          </router-link>
-          <el-dropdown-item divided @click.native="logout">
+          <el-dropdown-item command="profile">个人资料</el-dropdown-item>
+          <el-dropdown-item command="home">首页</el-dropdown-item>
+          <el-dropdown-item divided command="logout">
             <span style="display:block;">退出登录</span>
           </el-dropdown-item>
         </el-dropdown-menu>
@@ -58,12 +54,35 @@ export default {
     ...mapGetters([
       'sidebar',
       'avatar',
-      'device'
+      'device',
+      'roles'
     ])
   },
   methods: {
     toggleSideBar() {
       this.$store.dispatch('app/toggleSideBar')
+    },
+    handleCommand(command) {
+      if (command === 'profile') {
+        this.$router.push('/profile/index')
+        return
+      }
+      if (command === 'home') {
+        this.$router.push(this.getHomePath())
+        return
+      }
+      if (command === 'logout') {
+        this.logout()
+      }
+    },
+    getHomePath() {
+      if (this.roles.includes('CLIENT')) {
+        return '/client/order-create'
+      }
+      if (this.roles.includes('ADMIN') || this.roles.includes('RECEPTIONIST')) {
+        return '/dashboard/index'
+      }
+      return '/'
     },
     async logout() {
       await this.$store.dispatch('user/logout')

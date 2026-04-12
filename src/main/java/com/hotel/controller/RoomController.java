@@ -6,8 +6,10 @@ import com.hotel.common.PageResult;
 import com.hotel.common.Result;
 import com.hotel.entity.Order;
 import com.hotel.entity.Room;
+import com.hotel.entity.RoomType;
 import com.hotel.service.OrderService;
 import com.hotel.service.RoomService;
+import com.hotel.service.RoomTypeService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,7 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,6 +39,7 @@ public class RoomController {
 
     private final RoomService roomService;
     private final OrderService orderService;
+    private final RoomTypeService roomTypeService;
 
     @GetMapping
     public Result<PageResult<List<Room>>> list(
@@ -51,6 +56,7 @@ public class RoomController {
                 .orderByAsc(Room::getRoomNumber)
                 .page(new Page<>(pageNum, pageSize));
 
+        enrichRoomTypeInfo(page.getRecords());
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
@@ -60,6 +66,7 @@ public class RoomController {
         if (room == null) {
             return Result.error(404, "客房不存在");
         }
+        enrichRoomTypeInfo(Arrays.asList(room));
         return Result.success(room);
     }
 
@@ -149,6 +156,7 @@ public class RoomController {
                 .list();
 
         if (checkInDate == null || checkOutDate == null) {
+            enrichRoomTypeInfo(baseRooms);
             return baseRooms;
         }
 
@@ -159,7 +167,33 @@ public class RoomController {
                 .list();
 
         Set<Long> occupiedRoomIds = overlapOrders.stream().map(Order::getRoomId).collect(Collectors.toSet());
-        return baseRooms.stream().filter(room -> !occupiedRoomIds.contains(room.getId())).collect(Collectors.toList());
+        List<Room> availableRooms = baseRooms.stream().filter(room -> !occupiedRoomIds.contains(room.getId())).collect(Collectors.toList());
+        enrichRoomTypeInfo(availableRooms);
+        return availableRooms;
+    }
+
+    private void enrichRoomTypeInfo(List<Room> rooms) {
+        if (rooms == null || rooms.isEmpty()) {
+            return;
+        }
+        Set<Long> roomTypeIds = rooms.stream()
+                .map(Room::getRoomTypeId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        if (roomTypeIds.isEmpty()) {
+            return;
+        }
+
+        Map<Long, RoomType> roomTypeMap = new HashMap<>();
+        roomTypeService.listByIds(roomTypeIds).forEach(roomType -> roomTypeMap.put(roomType.getId(), roomType));
+
+        rooms.forEach(room -> {
+            RoomType roomType = roomTypeMap.get(room.getRoomTypeId());
+            if (roomType != null) {
+                room.setRoomTypeName(roomType.getTypeName());
+                room.setReferencePrice(roomType.getPrice());
+            }
+        });
     }
 
     @Data

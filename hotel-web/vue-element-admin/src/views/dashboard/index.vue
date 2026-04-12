@@ -8,7 +8,6 @@
         </div>
         <el-button size="mini" type="primary" :loading="loading" @click="fetchDashboard">刷新数据</el-button>
       </div>
-      <div class="desc">统计口径：金额按订单创建时间归集，仅统计状态为 PAID / COMPLETED 的订单。</div>
     </el-card>
 
     <el-row :gutter="20" style="margin-top: 20px;">
@@ -135,9 +134,11 @@ export default {
           listOrders({ pageNum: 1, pageSize: 1000 })
         ])
 
-        this.stats = Object.assign({}, this.stats, statsRes.data || {})
-
         const orders = this.normalizeListData(ordersRes.data)
+        const accumulatedCheckInCount = this.calcAccumulatedCheckInCount(orders)
+        this.stats = Object.assign({}, this.stats, statsRes.data || {}, {
+          accumulatedCheckInCount
+        })
         this.chartData = this.buildChartData(orders)
       } finally {
         this.loading = false
@@ -191,6 +192,23 @@ export default {
     },
     isRevenueStatus(status) {
       return status === 'PAID' || status === 'COMPLETED'
+    },
+    calcAccumulatedCheckInCount(orders) {
+      const today = this.formatDateKey(new Date())
+      const customerSet = new Set()
+      orders.forEach(order => {
+        if (!this.isRevenueStatus(order.status)) {
+          return
+        }
+        if (!order.customerId || !order.checkInDate) {
+          return
+        }
+        const checkInDate = String(order.checkInDate).slice(0, 10)
+        if (checkInDate <= today) {
+          customerSet.add(String(order.customerId))
+        }
+      })
+      return customerSet.size
     },
     buildChartData(orders) {
       const { keys, labels } = this.buildRecentDays(7)
@@ -454,11 +472,6 @@ export default {
     font-size: 14px;
     color: #606266;
   }
-}
-
-.desc {
-  color: #606266;
-  margin-top: 12px;
 }
 
 .metric-card {
