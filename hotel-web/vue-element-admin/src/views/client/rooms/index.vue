@@ -4,8 +4,15 @@
       <div slot="header">房间浏览</div>
 
       <el-form :inline="true" :model="query" class="filter-form">
-        <el-form-item label="客房类型ID">
-          <el-input v-model="query.roomTypeId" placeholder="选填" clearable />
+        <el-form-item label="客房类型">
+          <el-select v-model="query.roomTypeId" placeholder="全部类型" clearable filterable style="width: 220px;">
+            <el-option
+              v-for="item in roomTypeOptions"
+              :key="item.id"
+              :label="item.typeName"
+              :value="item.id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -15,16 +22,23 @@
       </el-form>
 
       <el-table v-loading="loading" :data="tableData" border>
-        <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="roomNumber" label="房间号" min-width="120" />
-        <el-table-column prop="roomTypeId" label="类型ID" min-width="100" />
+        <el-table-column label="房型" min-width="140">
+          <template slot-scope="scope">
+            {{ roomTypeName(scope.row.roomTypeId) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="floor" label="楼层" min-width="80" />
         <el-table-column label="状态" min-width="110">
           <template slot-scope="scope">
             {{ roomStatusLabel(scope.row.status) }}
           </template>
         </el-table-column>
-        <el-table-column prop="price" label="参考价格" min-width="100" />
+        <el-table-column label="参考价格" min-width="120">
+          <template slot-scope="scope">
+            {{ formatPrice(roomReferencePrice(scope.row)) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template slot-scope="scope">
             <el-button type="text" @click="openBookingDialog(scope.row)">立即预订</el-button>
@@ -75,10 +89,11 @@
       />
       <el-descriptions :column="1" border>
         <el-descriptions-item label="订单号">{{ payContext.orderNumber || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="房间号">{{ payContext.roomNumber || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="房型">{{ payContext.roomTypeName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="入住日期">{{ payContext.checkInDate || '-' }}</el-descriptions-item>
         <el-descriptions-item label="退房日期">{{ payContext.checkOutDate || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="房间ID">{{ payContext.roomId || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="应付金额">{{ payContext.totalAmount || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="应付金额">{{ formatPrice(payContext.totalAmount) }}</el-descriptions-item>
       </el-descriptions>
       <span slot="footer" class="dialog-footer">
         <el-button :loading="cancelSubmitting" @click="handleCancelNow">取消订单</el-button>
@@ -91,6 +106,7 @@
 
 <script>
 import { browseRooms, listAvailableRooms } from '@/api/rooms'
+import { listRoomTypes } from '@/api/roomTypes'
 import { createBooking, payBooking, cancelBooking } from '@/api/bookings'
 import { getRoomStatusLabel } from '@/constants/dict'
 
@@ -110,8 +126,9 @@ export default {
       paySubmitting: false,
       cancelSubmitting: false,
       tableData: [],
+      roomTypeOptions: [],
       query: {
-        roomTypeId: ''
+        roomTypeId: undefined
       },
       searchMode: 'browse',
       selectedRoom: null,
@@ -121,7 +138,9 @@ export default {
       payContext: {
         orderId: undefined,
         orderNumber: '',
+        roomNumber: '',
         roomId: undefined,
+        roomTypeName: '',
         checkInDate: '',
         checkOutDate: '',
         totalAmount: '',
@@ -134,14 +153,42 @@ export default {
     }
   },
   created() {
+    this.fetchRoomTypes()
     this.fetchData()
   },
   methods: {
     normalizeListData(data) {
       return Array.isArray(data) ? data : (data?.records || [])
     },
+    fetchRoomTypes() {
+      listRoomTypes({ pageNum: 1, pageSize: 1000, status: 1 })
+        .then(res => {
+          this.roomTypeOptions = this.normalizeListData(res.data)
+        })
+        .catch(() => {
+          this.roomTypeOptions = []
+        })
+    },
+    roomTypeName(roomTypeId) {
+      const found = this.roomTypeOptions.find(item => String(item.id) === String(roomTypeId))
+      return found?.typeName || `房型#${roomTypeId}`
+    },
+    roomReferencePrice(row) {
+      if (row?.price !== undefined && row?.price !== null && row?.price !== '') {
+        return row.price
+      }
+      const found = this.roomTypeOptions.find(item => String(item.id) === String(row?.roomTypeId))
+      return found?.price
+    },
+    formatPrice(value) {
+      if (value === undefined || value === null || value === '') {
+        return '-'
+      }
+      const num = Number(value)
+      return Number.isNaN(num) ? value : `¥${num.toFixed(2)}`
+    },
     fetchData() {
-      const roomTypeId = String(this.query.roomTypeId || '').trim()
+      const roomTypeId = this.query.roomTypeId
       const params = {}
 
       this.loading = true
@@ -154,7 +201,7 @@ export default {
         .then(res => {
           let records = this.normalizeListData(res.data)
           if (this.searchMode === 'available' && roomTypeId) {
-            records = records.filter(item => String(item.roomTypeId) === roomTypeId)
+            records = records.filter(item => String(item.roomTypeId) === String(roomTypeId))
           }
           this.tableData = records
         })
@@ -172,7 +219,7 @@ export default {
     },
     handleReset() {
       this.query = {
-        roomTypeId: ''
+        roomTypeId: undefined
       }
       this.searchMode = 'browse'
       this.fetchData()
@@ -202,10 +249,12 @@ export default {
       return {
         orderId: payload.id || payload.orderId || undefined,
         orderNumber: payload.orderNumber || '',
+        roomNumber: payload.roomNumber || this.selectedRoom?.roomNumber || '',
         roomId: payload.roomId || this.bookingForm.roomId,
+        roomTypeName: payload.roomTypeName || this.roomTypeName(payload.roomTypeId || this.selectedRoom?.roomTypeId),
         checkInDate: payload.checkInDate || this.bookingForm.checkInDate,
         checkOutDate: payload.checkOutDate || this.bookingForm.checkOutDate,
-        totalAmount: payload.totalAmount || '',
+        totalAmount: payload.totalAmount || this.roomReferencePrice(this.selectedRoom),
         status: payload.status || ''
       }
     },
