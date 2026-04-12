@@ -221,7 +221,12 @@
       <el-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-width="100px" class="profile-form">
         <el-form-item label="用户名"><el-input v-model="profileForm.username" disabled /></el-form-item>
         <el-form-item label="角色"><el-input :value="roleLabel(profileForm.roleCode)" disabled /></el-form-item>
-        <el-form-item label="账户余额"><el-input :value="formatPrice(profileForm.balance)" disabled /></el-form-item>
+        <el-form-item label="账户余额">
+          <div class="balance-row">
+            <el-input :value="formatPrice(profileForm.balance)" disabled />
+            <el-button type="primary" plain @click="openRechargeDialog">充值</el-button>
+          </div>
+        </el-form-item>
         <el-form-item label="真实姓名" prop="realName"><el-input v-model="profileForm.realName" /></el-form-item>
         <el-form-item label="手机号" prop="phone"><el-input v-model="profileForm.phone" /></el-form-item>
         <el-form-item label="身份证号" prop="idCard"><el-input v-model="profileForm.idCard" /></el-form-item>
@@ -238,6 +243,36 @@
         <el-button type="primary" :loading="profileSaving" @click="handleSaveProfile">保存</el-button>
       </span>
     </el-dialog>
+
+    <el-dialog title="账户充值" :visible.sync="rechargeDialogVisible" width="460px">
+      <el-form label-width="100px">
+        <el-form-item label="选择金额">
+          <el-radio-group v-model="rechargeAmount">
+            <el-radio-button v-for="item in rechargeOptions" :key="item" :label="item">
+              {{ formatPrice(item) }}
+            </el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="rechargeDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleRechargeConfirm">确定</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="扫码充值" :visible.sync="rechargeQrDialogVisible" width="420px" :close-on-click-modal="false" :show-close="false">
+      <div class="qr-box">
+        <el-image class="qr-image" :src="rechargeQrCodeUrl" fit="contain">
+          <div slot="error" class="qr-fallback">二维码加载失败，请稍后重试</div>
+        </el-image>
+        <p v-if="!rechargeSuccess" class="qr-tip">请扫码支付，{{ rechargeSecondsLeft }} 秒后自动到账</p>
+        <p v-else class="qr-tip success">充值成功</p>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="handleRechargeCancel">取消</el-button>
+        <el-button type="primary" :disabled="!rechargeSuccess" @click="handleRechargeBack">返回</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -246,7 +281,7 @@ import { getToken } from '@/utils/auth'
 import { browseRooms, listAvailableRooms, getRoomDetailForClient } from '@/api/rooms'
 import { register } from '@/api/auth'
 import { createBooking, listMyBookings, payBooking, cancelBooking } from '@/api/bookings'
-import { getProfile, updateProfile } from '@/api/profile'
+import { getProfile, rechargeProfile, updateProfile } from '@/api/profile'
 import { getRoomStatusLabel, getOrderStatusLabel, getRoleLabel } from '@/constants/dict'
 import { validIdCardCN, validPhoneCN } from '@/utils/validate'
 
@@ -327,6 +362,13 @@ export default {
       profileDialogVisible: false,
       profileSaving: false,
       profileForm: createProfileForm(),
+      rechargeDialogVisible: false,
+      rechargeQrDialogVisible: false,
+      rechargeOptions: [50, 100, 200, 500, 1000],
+      rechargeAmount: 100,
+      rechargeSecondsLeft: 3,
+      rechargeSuccess: false,
+      rechargeTimer: null,
       profileRules: {
         realName: [{ required: true, message: '请填写真实姓名', trigger: 'blur' }],
         phone: [{ required: true, trigger: 'blur', validator: validatePhone }],
@@ -369,6 +411,10 @@ export default {
       const userInfo = (this.$store.state.user && this.$store.state.user.userInfo) || {}
       return userInfo.realName || userInfo.username || this.$store.getters.name || '用户'
     },
+    rechargeQrCodeUrl() {
+      const content = `hotel-recharge:${this.profileForm.username || 'client'}:${this.rechargeAmount}`
+      return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(content)}`
+    },
     filteredRooms() {
       const keyword = this.keyword.trim().toLowerCase()
       if (!keyword) {
@@ -384,6 +430,9 @@ export default {
   created() {
     this.fetchRooms()
     this.ensureUserInfoLoaded()
+  },
+  beforeDestroy() {
+    this.clearRechargeTimer()
   },
   methods: {
     async ensureUserInfoLoaded() {
@@ -784,10 +833,66 @@ export default {
           })
       })
     },
+    openRechargeDialog() {
+      this.rechargeAmount = this.rechargeOptions[0]
+      this.rechargeDialogVisible = true
+    },
+    handleRechargeConfirm() {
+      this.rechargeDialogVisible = false
+      this.profileDialogVisible = false
+      this.rechargeQrDialogVisible = true
+      this.rechargeSuccess = false
+      this.rechargeSecondsLeft = 3
+      this.clearRechargeTimer()
+      this.rechargeTimer = setInterval(() => {
+        if (this.rechargeSecondsLeft > 1) {
+          this.rechargeSecondsLeft -= 1
+          return
+        }
+        this.clearRechargeTimer()
+        this.finishRecharge()
+      }, 1000)
+    },
+    finishRecharge() {
+      rechargeProfile({ amount: this.rechargeAmount })
+        .then(res => {
+          const data = res.data || {}
+          this.profileForm.balance = Number(data.balance || this.profileForm.balance)
+          this.rechargeSuccess = true
+          this.$message.success('充值成功')
+        })
+        .catch(() => {
+          this.rechargeQrDialogVisible = false
+          this.profileDialogVisible = true
+        })
+    },
+    handleRechargeCancel() {
+      this.clearRechargeTimer()
+      this.rechargeQrDialogVisible = false
+      this.rechargeSuccess = false
+      this.rechargeSecondsLeft = 3
+      this.profileDialogVisible = true
+    },
+    handleRechargeBack() {
+      this.rechargeQrDialogVisible = false
+      this.rechargeSuccess = false
+      this.rechargeSecondsLeft = 3
+      this.profileDialogVisible = true
+      this.fetchProfileData()
+    },
+    clearRechargeTimer() {
+      if (this.rechargeTimer) {
+        clearInterval(this.rechargeTimer)
+        this.rechargeTimer = null
+      }
+    },
     async handleLogout() {
       await this.$store.dispatch('user/logout')
       this.ordersDialogVisible = false
       this.profileDialogVisible = false
+      this.rechargeDialogVisible = false
+      this.rechargeQrDialogVisible = false
+      this.clearRechargeTimer()
       this.payDialogVisible = false
       this.bookingDialogVisible = false
       this.$message.success('已退出登录')
@@ -1053,6 +1158,45 @@ export default {
 
 .profile-form {
   max-width: 460px;
+}
+
+.balance-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 4px;
+}
+
+.qr-image {
+  width: 220px;
+  height: 220px;
+  border: 1px solid #dcdfe6;
+}
+
+.qr-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  font-size: 13px;
+}
+
+.qr-tip {
+  margin-top: 12px;
+  color: #606266;
+}
+
+.qr-tip.success {
+  color: #67c23a;
+  font-weight: 600;
 }
 
 @media (max-width: 1160px) {
