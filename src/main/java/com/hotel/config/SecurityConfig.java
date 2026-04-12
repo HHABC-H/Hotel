@@ -46,6 +46,7 @@ public class SecurityConfig {
                 .antMatchers("/bookings/**").hasRole("CLIENT")
                 .antMatchers(HttpMethod.GET, "/orders/my").authenticated()
                 .antMatchers(HttpMethod.PUT, "/orders/*/renew").authenticated()
+                .antMatchers(HttpMethod.GET, "/dashboard/stats").hasAnyRole("ADMIN", "RECEPTIONIST")
 
                 .antMatchers("/users/**").hasRole("ADMIN")
                 .antMatchers("/customers/**").hasAnyRole("ADMIN", "RECEPTIONIST")

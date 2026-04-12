@@ -177,6 +177,12 @@ public class BookingController {
             return Result.error(400, "Occupied order cannot be cancelled");
         }
 
+        if (Constant.ORDER_STATUS_PAID.equals(order.getStatus())
+                && !refundBalance(currentUser.getId(), order.getTotalAmount())) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return Result.error("Refund failed when cancel booking");
+        }
+
         order.setStatus(Constant.ORDER_STATUS_CANCELLED);
         return orderService.updateById(order) ? Result.success() : Result.error("Cancel booking failed");
     }
@@ -228,6 +234,16 @@ public class BookingController {
                 .eq(User::getId, userId)
                 .ge(User::getBalance, amount)
                 .setSql("balance = balance - " + amount.toPlainString())
+                .update();
+    }
+
+    private boolean refundBalance(Long userId, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return true;
+        }
+        return userService.lambdaUpdate()
+                .eq(User::getId, userId)
+                .setSql("balance = IFNULL(balance, 0) + " + amount.toPlainString())
                 .update();
     }
 }
