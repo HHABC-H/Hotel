@@ -1,11 +1,14 @@
 ﻿<template>
-  <div class="app-container">
-    <el-card shadow="never">
-      <div slot="header" class="header-row">
-        <span>员工管理</span>
-        <el-button type="primary" size="mini" @click="openCreateDialog">新增员工</el-button>
+  <div class="app-container oasis-page">
+    <div class="page-toolbar">
+      <div class="toolbar-title">
+        <h2>员工管理</h2>
+        <p>维护管理员与前台账号状态与权限角色</p>
       </div>
+      <el-button type="primary" @click="openCreateDialog">新增员工</el-button>
+    </div>
 
+    <el-card shadow="never" class="content-card">
       <el-form :inline="true" :model="query" class="filter-form">
         <el-form-item label="用户名">
           <el-input v-model="query.username" placeholder="请输入用户名" clearable @keyup.enter.native="handleSearch" />
@@ -27,8 +30,7 @@
         </el-form-item>
       </el-form>
 
-      <el-table v-loading="loading" :data="tableData" border>
-        <el-table-column prop="id" label="ID" width="70" />
+      <el-table v-loading="loading" :data="tableData" border class="data-table">
         <el-table-column prop="username" label="账号" min-width="120" />
         <el-table-column prop="realName" label="姓名" min-width="120" />
         <el-table-column prop="phone" label="手机号" min-width="130" />
@@ -51,9 +53,9 @@
         <el-table-column prop="createTime" label="创建时间" min-width="170" />
         <el-table-column label="操作" min-width="280" fixed="right">
           <template slot-scope="scope">
-            <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
-            <el-button type="text" @click="toggleStatus(scope.row)">{{ scope.row.status === 1 ? '禁用' : '启用' }}</el-button>
-            <el-button type="text" class="danger-btn" @click="handleDelete(scope.row)">删除</el-button>
+            <el-button type="text" class="op-btn" @click="openEditDialog(scope.row)">编辑</el-button>
+            <el-button type="text" class="op-btn" @click="toggleStatus(scope.row)">{{ scope.row.status === 1 ? '禁用' : '启用' }}</el-button>
+            <el-button type="text" class="danger-btn op-btn" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -349,22 +351,61 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.header-row {
+.oasis-page {
+  .content-card {
+    border: 1px solid #dce9e5;
+    border-radius: 16px;
+    box-shadow: 0 12px 26px rgba(11, 63, 54, 0.08);
+  }
+}
+
+.page-toolbar {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(120deg, rgba(9, 38, 50, 0.93), rgba(17, 93, 89, 0.86));
+  box-shadow: 0 10px 26px rgba(9, 38, 50, 0.22);
+}
+
+.toolbar-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #f8fcff;
+  letter-spacing: 0.4px;
+}
+
+.toolbar-title p {
+  margin: 6px 0 0;
+  color: rgba(226, 242, 246, 0.86);
+  font-size: 13px;
 }
 
 .filter-form {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  padding: 14px 12px 2px;
+  background: #f7fbfa;
+  border: 1px solid #dcebe7;
+  border-radius: 10px;
+}
+
+.data-table {
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .pagination-wrapper {
-  margin-top: 16px;
+  margin-top: 18px;
   text-align: right;
 }
 
 .danger-btn {
   color: #f56c6c;
+}
+
+.op-btn + .op-btn {
+  margin-left: 8px;
 }
 </style>

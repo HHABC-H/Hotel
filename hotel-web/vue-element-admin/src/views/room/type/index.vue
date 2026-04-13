@@ -1,11 +1,14 @@
 ﻿<template>
-  <div class="app-container">
-    <el-card shadow="never">
-      <div slot="header" class="header-row">
-        <span>客房类型</span>
-        <el-button v-if="canManage" type="primary" size="mini" @click="openCreateDialog">新增类型</el-button>
+  <div class="app-container oasis-page">
+    <div class="page-toolbar">
+      <div class="toolbar-title">
+        <h2>房型管理</h2>
+        <p>维护房型价格、人数、图片和状态</p>
       </div>
+      <el-button v-if="canManage" type="primary" @click="openCreateDialog">新增房型</el-button>
+    </div>
 
+    <el-card shadow="never" class="content-card">
       <el-form :inline="true" :model="query" class="filter-form">
         <el-form-item label="类型名称">
           <el-input v-model="query.typeName" placeholder="请输入类型名称" clearable @keyup.enter.native="handleSearch" />
@@ -22,8 +25,7 @@
         </el-form-item>
       </el-form>
 
-      <el-table v-loading="loading" :data="tableData" border>
-        <el-table-column prop="id" label="ID" width="70" />
+      <el-table v-loading="loading" :data="tableData" border class="data-table">
         <el-table-column prop="typeName" label="类型名称" min-width="140" />
         <el-table-column label="图片" min-width="140">
           <template slot-scope="scope">
@@ -49,8 +51,8 @@
         </el-table-column>
         <el-table-column v-if="canManage" label="操作" width="170" fixed="right">
           <template slot-scope="scope">
-            <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
-            <el-button type="text" class="danger-btn" @click="handleDelete(scope.row)">删除</el-button>
+            <el-button type="text" class="op-btn" @click="openEditDialog(scope.row)">编辑</el-button>
+            <el-button type="text" class="danger-btn op-btn" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -346,18 +348,53 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.header-row {
+.oasis-page {
+  .content-card {
+    border: 1px solid #dce9e5;
+    border-radius: 16px;
+    box-shadow: 0 12px 26px rgba(11, 63, 54, 0.08);
+  }
+}
+
+.page-toolbar {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(120deg, rgba(9, 38, 50, 0.93), rgba(17, 93, 89, 0.86));
+  box-shadow: 0 10px 26px rgba(9, 38, 50, 0.22);
+}
+
+.toolbar-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #f8fcff;
+  letter-spacing: 0.4px;
+}
+
+.toolbar-title p {
+  margin: 6px 0 0;
+  color: rgba(226, 242, 246, 0.86);
+  font-size: 13px;
 }
 
 .filter-form {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  padding: 14px 12px 2px;
+  background: #f7fbfa;
+  border: 1px solid #dcebe7;
+  border-radius: 10px;
+}
+
+.data-table {
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .pagination-wrapper {
-  margin-top: 16px;
+  margin-top: 18px;
   text-align: right;
 }
 
@@ -365,11 +402,15 @@ export default {
   color: #f56c6c;
 }
 
+.op-btn + .op-btn {
+  margin-left: 8px;
+}
+
 .type-image {
   width: 90px;
   height: 60px;
-  border-radius: 4px;
-  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  border: 1px solid #d9e6e2;
 }
 
 .form-image {

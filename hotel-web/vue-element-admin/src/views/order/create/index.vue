@@ -1,100 +1,106 @@
 ﻿<template>
-  <div class="app-container">
-    <el-card shadow="never">
-      <div slot="header" class="header-row">
-        <span>创建订单</span>
-        <el-button size="mini" @click="refreshOptions">刷新选项</el-button>
+  <div class="app-container oasis-page">
+    <div class="page-toolbar">
+      <div class="toolbar-title">
+        <h2>创建订单</h2>
+        <p>先选择日期，再从可用房间中为顾客创建订单</p>
       </div>
+      <el-button type="primary" plain @click="refreshOptions">刷新选项</el-button>
+    </div>
 
-      <el-alert
-        type="info"
-        :closable="false"
-        title="请先选择入住/退房日期，再选择可用房间。"
-        style="margin-bottom: 16px;"
-      />
+    <div class="order-layout">
+      <el-card shadow="never" class="content-card form-card">
+        <el-alert
+          type="info"
+          :closable="false"
+          title="请先选择入住/退房日期，再选择可用房间。"
+          class="tip-alert"
+        />
 
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" class="order-form">
-        <el-form-item label="客户" prop="customerId">
-          <el-select
-            v-model="form.customerId"
-            placeholder="请选择客户"
-            filterable
-            clearable
-            :loading="customerLoading"
-            style="width: 100%;"
-          >
-            <el-option
-              v-for="item in customerOptions"
-              :key="item.id"
-              :label="`${item.realName || item.username}（${item.phone || '无手机号'}）`"
-              :value="item.id"
+        <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" class="order-form">
+          <el-form-item label="客户" prop="customerId">
+            <el-select
+              v-model="form.customerId"
+              placeholder="请选择客户"
+              filterable
+              clearable
+              :loading="customerLoading"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="item in customerOptions"
+                :key="item.id"
+                :label="`${item.realName || item.username}（${item.phone || '无手机号'}）`"
+                :value="item.id"
+              />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="入住日期" prop="checkInDate">
+            <el-date-picker
+              v-model="form.checkInDate"
+              type="date"
+              value-format="yyyy-MM-dd"
+              placeholder="选择入住日期"
+              style="width: 100%;"
+              :picker-options="checkInDatePickerOptions"
+              @change="handleCheckInDateChange"
             />
-          </el-select>
-        </el-form-item>
+          </el-form-item>
 
-        <el-form-item label="入住日期" prop="checkInDate">
-          <el-date-picker
-            v-model="form.checkInDate"
-            type="date"
-            value-format="yyyy-MM-dd"
-            placeholder="选择入住日期"
-            style="width: 100%;"
-            :picker-options="checkInDatePickerOptions"
-            @change="handleCheckInDateChange"
-          />
-        </el-form-item>
-
-        <el-form-item label="退房日期" prop="checkOutDate">
-          <el-date-picker
-            v-model="form.checkOutDate"
-            type="date"
-            value-format="yyyy-MM-dd"
-            placeholder="选择退房日期"
-            style="width: 100%;"
-            :picker-options="checkOutDatePickerOptions"
-            @change="handleCheckOutDateChange"
-          />
-        </el-form-item>
-
-        <el-form-item label="可用房间" prop="roomId">
-          <el-select
-            v-model="form.roomId"
-            placeholder="请选择房间"
-            filterable
-            clearable
-            :loading="roomLoading"
-            style="width: 100%;"
-            :disabled="!canLoadRooms"
-          >
-            <el-option
-              v-for="item in roomOptions"
-              :key="item.id"
-              :label="`#${item.roomNumber}（${roomStatusLabel(item.status || 'AVAILABLE')}）`"
-              :value="item.id"
+          <el-form-item label="退房日期" prop="checkOutDate">
+            <el-date-picker
+              v-model="form.checkOutDate"
+              type="date"
+              value-format="yyyy-MM-dd"
+              placeholder="选择退房日期"
+              style="width: 100%;"
+              :picker-options="checkOutDatePickerOptions"
+              @change="handleCheckOutDateChange"
             />
-          </el-select>
-        </el-form-item>
+          </el-form-item>
 
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="选填" />
-        </el-form-item>
+          <el-form-item label="可用房间" prop="roomId">
+            <el-select
+              v-model="form.roomId"
+              placeholder="请选择房间"
+              filterable
+              clearable
+              :loading="roomLoading"
+              style="width: 100%;"
+              :disabled="!canLoadRooms"
+            >
+              <el-option
+                v-for="item in roomOptions"
+                :key="item.id"
+                :label="`#${item.roomNumber}（${roomStatusLabel(item.status || 'AVAILABLE')}）`"
+                :value="item.id"
+              />
+            </el-select>
+          </el-form-item>
 
-        <el-form-item>
-          <el-button type="primary" :loading="submitting" @click="handleSubmit">提交</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
+          <el-form-item label="备注">
+            <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="选填" />
+          </el-form-item>
 
-      <div v-if="selectedRoom" class="selected-room-panel">
-        <div class="selected-room-title">已选房间信息</div>
-        <el-row :gutter="16">
-          <el-col :span="12"><div class="selected-room-item"><span class="selected-room-label">房间号</span><span class="selected-room-value">{{ selectedRoom.roomNumber || '-' }}</span></div></el-col>
-          <el-col :span="12"><div class="selected-room-item"><span class="selected-room-label">房态</span><span class="selected-room-value">{{ roomStatusLabel(selectedRoom.status) }}</span></div></el-col>
-          <el-col :span="12"><div class="selected-room-item"><span class="selected-room-label">楼层</span><span class="selected-room-value">{{ selectedRoom.floor || '-' }}</span></div></el-col>
-          <el-col :span="12"><div class="selected-room-item"><span class="selected-room-label">房型ID</span><span class="selected-room-value">{{ selectedRoom.roomTypeId || '-' }}</span></div></el-col>
-        </el-row>
-      </div>
-    </el-card>
+          <el-form-item>
+            <el-button type="primary" :loading="submitting" @click="handleSubmit">提交</el-button>
+            <el-button @click="handleReset">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+
+      <el-card shadow="never" class="content-card selected-room-panel">
+        <div class="selected-room-title">房间预览</div>
+        <template v-if="selectedRoom">
+          <div class="selected-room-item"><span class="selected-room-label">房间号</span><span class="selected-room-value">{{ selectedRoom.roomNumber || '-' }}</span></div>
+          <div class="selected-room-item"><span class="selected-room-label">房态</span><span class="selected-room-value">{{ roomStatusLabel(selectedRoom.status) }}</span></div>
+          <div class="selected-room-item"><span class="selected-room-label">楼层</span><span class="selected-room-value">{{ selectedRoom.floor || '-' }}</span></div>
+          <div class="selected-room-item"><span class="selected-room-label">房型ID</span><span class="selected-room-value">{{ selectedRoom.roomTypeId || '-' }}</span></div>
+        </template>
+        <div v-else class="room-placeholder">请选择可用房间后查看详情</div>
+      </el-card>
+    </div>
   </div>
 </template>
 
@@ -282,45 +288,97 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.header-row {
+.oasis-page {
+  .content-card {
+    border: 1px solid #dce9e5;
+    border-radius: 16px;
+    box-shadow: 0 12px 26px rgba(11, 63, 54, 0.08);
+  }
+}
+
+.page-toolbar {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(120deg, rgba(9, 38, 50, 0.93), rgba(17, 93, 89, 0.86));
+  box-shadow: 0 10px 26px rgba(9, 38, 50, 0.22);
+}
+
+.toolbar-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #f8fcff;
+  letter-spacing: 0.4px;
+}
+
+.toolbar-title p {
+  margin: 6px 0 0;
+  color: rgba(226, 242, 246, 0.86);
+  font-size: 13px;
+}
+
+.order-layout {
+  display: grid;
+  grid-template-columns: minmax(540px, 1.1fr) minmax(300px, 0.8fr);
+  gap: 16px;
+}
+
+.form-card {
+  min-width: 0;
+}
+
+.tip-alert {
+  margin-bottom: 16px;
 }
 
 .order-form {
-  max-width: 560px;
+  max-width: 620px;
 }
 
 .selected-room-panel {
-  margin-top: 16px;
-  padding: 12px;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-  background: #fafafa;
+  min-height: 220px;
+  padding: 18px 16px;
 }
 
 .selected-room-title {
-  margin-bottom: 10px;
-  font-size: 14px;
+  margin-bottom: 14px;
+  font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: #173d44;
 }
 
 .selected-room-item {
   display: flex;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   line-height: 20px;
 }
 
 .selected-room-label {
-  width: 68px;
+  width: 72px;
   flex-shrink: 0;
-  color: #909399;
+  color: #5f7f87;
 }
 
 .selected-room-value {
-  color: #303133;
+  color: #1f2f35;
   word-break: break-all;
+}
+
+.room-placeholder {
+  color: #6b8a90;
+  padding-top: 10px;
+}
+
+@media (max-width: 1200px) {
+  .order-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .order-form {
+    max-width: 100%;
+  }
 }
 </style>

@@ -1,17 +1,20 @@
 ﻿<template>
-  <div class="app-container">
-    <el-card shadow="never">
-      <div slot="header" class="header-row">
-        <span>客房信息</span>
-        <el-button v-if="canManage" type="primary" size="mini" @click="openCreateDialog">新增客房</el-button>
+  <div class="app-container oasis-page">
+    <div class="page-toolbar">
+      <div class="toolbar-title">
+        <h2>房间管理</h2>
+        <p>查看房态并维护客房基础信息</p>
       </div>
+      <el-button v-if="canManage" type="primary" @click="openCreateDialog">新增客房</el-button>
+    </div>
 
+    <el-card shadow="never" class="content-card">
       <el-form :inline="true" :model="query" class="filter-form">
         <el-form-item label="房间号">
           <el-input v-model="query.roomNumber" placeholder="请输入房间号" clearable @keyup.enter.native="handleSearch" />
         </el-form-item>
-        <el-form-item label="客房类型ID">
-          <el-input v-model="query.roomTypeId" placeholder="请输入类型ID" clearable />
+        <el-form-item label="房型ID">
+          <el-input v-model="query.roomTypeId" placeholder="请输入房型ID" clearable />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable>
@@ -24,11 +27,10 @@
         </el-form-item>
       </el-form>
 
-      <el-table v-loading="loading" :data="tableData" border>
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="roomNumber" label="房间号" min-width="110" />
-        <el-table-column prop="roomTypeId" label="类型ID" min-width="90" />
-        <el-table-column prop="floor" label="楼层" min-width="80" />
+      <el-table v-loading="loading" :data="tableData" border class="data-table">
+        <el-table-column prop="roomNumber" label="房间号" min-width="120" />
+        <el-table-column prop="roomTypeId" label="房型ID" min-width="100" />
+        <el-table-column prop="floor" label="楼层" min-width="90" />
         <el-table-column label="状态" min-width="110">
           <template slot-scope="scope">
             {{ roomStatusLabel(scope.row.status) }}
@@ -50,7 +52,7 @@
                 </el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
-            <el-button type="text" class="danger-btn" @click="handleDelete(scope.row)">删除</el-button>
+            <el-button type="text" class="danger-btn op-btn" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -273,18 +275,53 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.header-row {
+.oasis-page {
+  .content-card {
+    border: 1px solid #dce9e5;
+    border-radius: 16px;
+    box-shadow: 0 12px 26px rgba(11, 63, 54, 0.08);
+  }
+}
+
+.page-toolbar {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(120deg, rgba(9, 38, 50, 0.93), rgba(17, 93, 89, 0.86));
+  box-shadow: 0 10px 26px rgba(9, 38, 50, 0.22);
+}
+
+.toolbar-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #f8fcff;
+  letter-spacing: 0.4px;
+}
+
+.toolbar-title p {
+  margin: 6px 0 0;
+  color: rgba(226, 242, 246, 0.86);
+  font-size: 13px;
 }
 
 .filter-form {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  padding: 14px 12px 2px;
+  background: #f7fbfa;
+  border: 1px solid #dcebe7;
+  border-radius: 10px;
+}
+
+.data-table {
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .pagination-wrapper {
-  margin-top: 16px;
+  margin-top: 18px;
   text-align: right;
 }
 
@@ -292,7 +329,7 @@ export default {
   color: #f56c6c;
 }
 
-.op-btn {
-  margin-right: 10px;
+.op-btn + .op-btn {
+  margin-left: 10px;
 }
 </style>
