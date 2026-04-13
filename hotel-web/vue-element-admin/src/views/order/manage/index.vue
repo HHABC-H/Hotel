@@ -7,8 +7,8 @@
       </div>
 
       <el-form :inline="true" :model="query" class="filter-form">
-        <el-form-item label="订单号">
-          <el-input v-model="query.orderNumber" placeholder="请输入订单号" clearable @keyup.enter.native="handleSearch" />
+        <el-form-item label="顾客ID">
+          <el-input v-model="query.customerId" placeholder="请输入顾客ID" clearable @keyup.enter.native="handleSearch" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="全部" clearable>
@@ -35,6 +35,17 @@
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="220" />
+        <el-table-column label="操作" min-width="470" fixed="right">
+          <template slot-scope="scope">
+            <el-button type="text" @click="openDetailDialog(scope.row)">详情</el-button>
+            <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
+            <el-button type="text" :disabled="!canPay(scope.row)" @click="handlePay(scope.row)">支付</el-button>
+            <el-button type="text" :disabled="!canRenew(scope.row)" @click="openRenewDialog(scope.row)">续房</el-button>
+            <el-button type="text" :disabled="!canCheckIn(scope.row)" @click="handleCheckIn(scope.row)">入住</el-button>
+            <el-button type="text" :disabled="!canCheckOut(scope.row)" @click="handleCheckOut(scope.row)">退房</el-button>
+            <el-button type="text" class="danger-btn" :disabled="!canCancel(scope.row)" @click="handleCancel(scope.row)">取消</el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pagination-wrapper">
@@ -230,7 +241,7 @@ export default {
       query: {
         pageNum: 1,
         pageSize: 10,
-        orderNumber: '',
+        customerId: '',
         status: undefined
       },
       dialogVisible: false,
@@ -312,7 +323,7 @@ export default {
       this.query = {
         pageNum: 1,
         pageSize: 10,
-        orderNumber: '',
+        customerId: '',
         status: undefined
       }
       this.fetchData()
