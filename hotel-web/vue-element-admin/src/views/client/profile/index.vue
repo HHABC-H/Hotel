@@ -1,8 +1,14 @@
 ﻿<template>
-  <div class="app-container">
-    <el-card shadow="never">
-      <div slot="header">个人资料</div>
+  <div class="app-container oasis-page">
+    <div class="page-toolbar">
+      <div class="toolbar-title">
+        <h2>个人中心</h2>
+        <p>维护个人资料、账户余额与充值记录</p>
+      </div>
+      <el-button type="primary" plain @click="fetchProfileData">刷新资料</el-button>
+    </div>
 
+    <el-card shadow="never" class="content-card">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" class="profile-form">
         <el-form-item label="用户名">
           <el-input v-model="form.username" disabled />
@@ -34,7 +40,7 @@
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
-          <el-button @click="fetchProfileData">刷新</el-button>
+          <el-button @click="fetchProfileData">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -233,8 +239,40 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.oasis-page {
+  .content-card {
+    border: 1px solid #dce9e5;
+    border-radius: 16px;
+    box-shadow: 0 12px 26px rgba(11, 63, 54, 0.08);
+  }
+}
+
+.page-toolbar {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(120deg, rgba(9, 38, 50, 0.93), rgba(17, 93, 89, 0.86));
+  box-shadow: 0 10px 26px rgba(9, 38, 50, 0.22);
+}
+
+.toolbar-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #f8fcff;
+  letter-spacing: 0.4px;
+}
+
+.toolbar-title p {
+  margin: 6px 0 0;
+  color: rgba(226, 242, 246, 0.86);
+  font-size: 13px;
+}
+
 .profile-form {
-  max-width: 560px;
+  max-width: 620px;
 }
 
 .balance-row {

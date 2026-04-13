@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="dashboard-page">
     <div class="ops-bar">
       <div class="ops-left">
@@ -115,12 +115,54 @@ export default {
     },
     moduleEntries() {
       return [
-        { key: 'order', title: '订单管理', desc: '查看订单并执行支付、入住、退房等操作', path: '/order/list', icon: 'el-icon-s-order', roles: ['ADMIN', 'RECEPTIONIST'] },
-        { key: 'room', title: '房间管理', desc: '维护房间信息与房态，支持空闲房快速检索', path: '/room/list', icon: 'el-icon-house', roles: ['ADMIN', 'RECEPTIONIST'] },
-        { key: 'roomType', title: '房型管理', desc: '维护房型名称、价格和容量等基础配置', path: '/room/types', icon: 'el-icon-collection-tag', roles: ['ADMIN', 'RECEPTIONIST'] },
-        { key: 'customer', title: '顾客管理', desc: '查询顾客档案、联系方式与账户信息', path: '/customer/manage', icon: 'el-icon-user-solid', roles: ['ADMIN', 'RECEPTIONIST'] },
-        { key: 'staff', title: '员工管理', desc: '管理员可维护员工账号与角色权限', path: '/system/staff', icon: 'el-icon-user', roles: ['ADMIN'] },
-        { key: 'profile', title: '个人中心', desc: '查看并更新当前账号的个人资料', path: '/staff/profile', icon: 'el-icon-id-card', roles: ['ADMIN', 'RECEPTIONIST'] }
+        {
+          key: 'order',
+          title: '订单管理',
+          desc: '查看订单并执行支付、入住、退房等状态流转',
+          path: '/order/list',
+          icon: 'el-icon-s-order',
+          roles: ['ADMIN', 'RECEPTIONIST']
+        },
+        {
+          key: 'room',
+          title: '房间管理',
+          desc: '维护房间信息与房态，支持空闲房快速检索',
+          path: '/room/list',
+          icon: 'el-icon-house',
+          roles: ['ADMIN', 'RECEPTIONIST']
+        },
+        {
+          key: 'roomType',
+          title: '房型管理',
+          desc: '维护房型名称、价格与容量等基础配置',
+          path: '/room/types',
+          icon: 'el-icon-collection-tag',
+          roles: ['ADMIN', 'RECEPTIONIST']
+        },
+        {
+          key: 'customer',
+          title: '顾客管理',
+          desc: '查询顾客档案、联系方式与账户信息',
+          path: '/customer/manage',
+          icon: 'el-icon-user-solid',
+          roles: ['ADMIN', 'RECEPTIONIST']
+        },
+        {
+          key: 'staff',
+          title: '员工管理',
+          desc: '管理员可维护员工账号与角色权限',
+          path: '/system/staff',
+          icon: 'el-icon-user',
+          roles: ['ADMIN']
+        },
+        {
+          key: 'profile',
+          title: '个人中心',
+          desc: '查看并更新当前账号的个人资料',
+          path: '/staff/profile',
+          icon: 'el-icon-id-card',
+          roles: ['ADMIN', 'RECEPTIONIST']
+        }
       ]
     },
     filteredModules() {
