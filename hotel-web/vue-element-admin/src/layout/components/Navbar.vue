@@ -1,7 +1,8 @@
-﻿<template>
+<template>
   <div class="navbar">
     <hamburger id="hamburger-container" :is-active="sidebar.opened" class="hamburger-container" @toggleClick="toggleSideBar" />
 
+    <div class="brand-block">绿洲酒店</div>
     <breadcrumb id="breadcrumb-container" class="breadcrumb-container" />
 
     <div class="right-menu">
@@ -10,7 +11,7 @@
         <error-log class="errLog-container right-menu-item hover-effect" />
         <screenfull id="screenfull" class="right-menu-item hover-effect" />
 
-        <el-tooltip content="Global Size" effect="dark" placement="bottom">
+        <el-tooltip content="界面尺寸" effect="dark" placement="bottom">
           <size-select id="size-select" class="right-menu-item hover-effect" />
         </el-tooltip>
       </template>
@@ -77,7 +78,7 @@ export default {
     },
     getHomePath() {
       if (this.roles.includes('CLIENT')) {
-        return '/client/order-create'
+        return '/login'
       }
       if (this.roles.includes('ADMIN') || this.roles.includes('RECEPTIONIST')) {
         return '/dashboard/index'
@@ -94,14 +95,26 @@ export default {
 
 <style lang="scss" scoped>
 .navbar {
-  height: 50px;
+  height: 58px;
   overflow: hidden;
   position: relative;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  background: rgba(8, 16, 28, 0.84);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 20px rgba(5, 14, 24, 0.28);
+
+  .brand-block {
+    float: left;
+    margin-left: 8px;
+    margin-top: 16px;
+    font-size: 19px;
+    font-weight: 700;
+    color: #f0f9ff;
+    letter-spacing: 1px;
+  }
 
   .hamburger-container {
-    line-height: 46px;
+    line-height: 56px;
     height: 100%;
     float: left;
     cursor: pointer;
@@ -109,12 +122,19 @@ export default {
     -webkit-tap-highlight-color: transparent;
 
     &:hover {
-      background: rgba(0, 0, 0, .025);
+      background: rgba(255, 255, 255, .08);
     }
   }
 
   .breadcrumb-container {
     float: left;
+    margin-left: 10px;
+
+    /deep/ .el-breadcrumb__inner,
+    /deep/ .el-breadcrumb__inner a,
+    /deep/ .el-breadcrumb__separator {
+      color: rgba(240, 249, 255, 0.82) !important;
+    }
   }
 
   .errLog-container {
@@ -125,7 +145,7 @@ export default {
   .right-menu {
     float: right;
     height: 100%;
-    line-height: 50px;
+    line-height: 58px;
 
     &:focus {
       outline: none;
@@ -136,7 +156,7 @@ export default {
       padding: 0 8px;
       height: 100%;
       font-size: 18px;
-      color: #5a5e66;
+      color: #e2e8f0;
       vertical-align: text-bottom;
 
       &.hover-effect {
@@ -144,7 +164,7 @@ export default {
         transition: background .3s;
 
         &:hover {
-          background: rgba(0, 0, 0, .025);
+          background: rgba(255, 255, 255, .08);
         }
       }
     }
@@ -153,14 +173,15 @@ export default {
       margin-right: 30px;
 
       .avatar-wrapper {
-        margin-top: 5px;
+        margin-top: 8px;
         position: relative;
 
         .user-avatar {
           cursor: pointer;
           width: 40px;
           height: 40px;
-          border-radius: 10px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
         .el-icon-caret-bottom {
@@ -169,6 +190,7 @@ export default {
           right: -20px;
           top: 25px;
           font-size: 12px;
+          color: #cbd5e1;
         }
       }
     }

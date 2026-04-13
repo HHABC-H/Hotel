@@ -24,8 +24,8 @@ export default {
   },
   data() {
     return {
-      title: 'Vue Element Admin',
-      logo: 'https://wpimg.wallstcn.com/69a1c46c-eb1c-4b46-8bd4-e9e686ef5251.png'
+      title: '绿洲酒店',
+      logo: ''
     }
   }
 }
@@ -46,7 +46,7 @@ export default {
   width: 100%;
   height: 50px;
   line-height: 50px;
-  background: #2b2f3a;
+  background: rgba(7, 14, 24, 0.88);
   text-align: center;
   overflow: hidden;
 
@@ -67,8 +67,8 @@ export default {
       color: #fff;
       font-weight: 600;
       line-height: 50px;
-      font-size: 14px;
-      font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
+      font-size: 15px;
+      font-family: 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
       vertical-align: middle;
     }
   }

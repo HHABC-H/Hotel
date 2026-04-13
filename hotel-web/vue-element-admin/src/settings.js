@@ -1,5 +1,5 @@
 module.exports = {
-  title: '酒店管理系统',
+  title: '绿洲酒店管理系统',
 
   /**
    * @type {boolean} true | false

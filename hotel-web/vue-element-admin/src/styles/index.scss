@@ -10,7 +10,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
+  font-family: 'Source Han Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: #eef2f7;
+  color: #243444;
 }
 
 label {
@@ -24,6 +26,7 @@ html {
 
 #app {
   height: 100%;
+  background: linear-gradient(180deg, #f6f9fc 0%, #eef2f7 100%);
 }
 
 *,
@@ -122,6 +125,12 @@ aside {
 //main-container全局样式
 .app-container {
   padding: 20px;
+}
+
+.el-card {
+  border-radius: 14px !important;
+  border: 1px solid rgba(15, 23, 35, 0.08) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 35, 0.08) !important;
 }
 
 .components-container {
