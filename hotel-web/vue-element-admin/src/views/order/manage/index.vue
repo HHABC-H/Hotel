@@ -1,11 +1,14 @@
 ﻿<template>
-  <div class="app-container">
-    <el-card shadow="never">
-      <div slot="header" class="header-row">
-        <span>订单列表</span>
-        <el-button type="primary" size="mini" @click="openCreateDialog">新增订单</el-button>
+  <div class="app-container oasis-page">
+    <div class="page-toolbar">
+      <div class="toolbar-title">
+        <h2>订单管理</h2>
+        <p>查询订单并执行支付、入住、退房、取消等状态流转</p>
       </div>
+      <el-button type="primary" @click="openCreateDialog">新增订单</el-button>
+    </div>
 
+    <el-card shadow="never" class="content-card">
       <el-form :inline="true" :model="query" class="filter-form">
         <el-form-item label="顾客ID">
           <el-input v-model="query.customerId" placeholder="请输入顾客ID" clearable @keyup.enter.native="handleSearch" />
@@ -21,14 +24,17 @@
         </el-form-item>
       </el-form>
 
-      <el-table v-loading="loading" :data="tableData" border>
-        <el-table-column prop="id" label="ID" width="70" />
+      <el-table v-loading="loading" :data="tableData" border class="data-table">
         <el-table-column prop="orderNumber" label="订单号" min-width="170" />
         <el-table-column prop="customerId" label="客户ID" width="90" />
         <el-table-column prop="roomId" label="房间ID" width="90" />
         <el-table-column prop="checkInDate" label="入住日期" min-width="120" />
         <el-table-column prop="checkOutDate" label="退房日期" min-width="120" />
-        <el-table-column prop="totalAmount" label="总金额" min-width="100" />
+        <el-table-column label="总金额" min-width="100">
+          <template slot-scope="scope">
+            {{ formatAmount(scope.row.totalAmount) }}
+          </template>
+        </el-table-column>
         <el-table-column label="状态" min-width="110">
           <template slot-scope="scope">
             {{ orderStatusLabel(scope.row.status) }}
@@ -37,13 +43,15 @@
         <el-table-column prop="remark" label="备注" min-width="220" />
         <el-table-column label="操作" min-width="470" fixed="right">
           <template slot-scope="scope">
-            <el-button type="text" @click="openDetailDialog(scope.row)">详情</el-button>
-            <el-button type="text" @click="openEditDialog(scope.row)">编辑</el-button>
-            <el-button type="text" :disabled="!canPay(scope.row)" @click="handlePay(scope.row)">支付</el-button>
-            <el-button type="text" :disabled="!canRenew(scope.row)" @click="openRenewDialog(scope.row)">续房</el-button>
-            <el-button type="text" :disabled="!canCheckIn(scope.row)" @click="handleCheckIn(scope.row)">入住</el-button>
-            <el-button type="text" :disabled="!canCheckOut(scope.row)" @click="handleCheckOut(scope.row)">退房</el-button>
-            <el-button type="text" class="danger-btn" :disabled="!canCancel(scope.row)" @click="handleCancel(scope.row)">取消</el-button>
+            <div class="table-actions">
+              <el-button type="text" class="op-btn" @click="openDetailDialog(scope.row)">详情</el-button>
+              <el-button type="text" class="op-btn" @click="openEditDialog(scope.row)">编辑</el-button>
+              <el-button type="text" class="op-btn" :disabled="!canPay(scope.row)" @click="handlePay(scope.row)">支付</el-button>
+              <el-button type="text" class="op-btn" :disabled="!canRenew(scope.row)" @click="openRenewDialog(scope.row)">续房</el-button>
+              <el-button type="text" class="op-btn" :disabled="!canCheckIn(scope.row)" @click="handleCheckIn(scope.row)">入住</el-button>
+              <el-button type="text" class="op-btn" :disabled="!canCheckOut(scope.row)" @click="handleCheckOut(scope.row)">退房</el-button>
+              <el-button type="text" class="danger-btn op-btn" :disabled="!canCancel(scope.row)" @click="handleCancel(scope.row)">取消</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -130,7 +138,7 @@
       </span>
     </el-dialog>
 
-    <el-dialog title="订单详情" :visible.sync="detailDialogVisible" width="860px">
+    <el-dialog title="订单详情" :visible.sync="detailDialogVisible" width="860px" class="detail-dialog">
       <el-skeleton v-if="detailLoading" :rows="8" animated />
       <div v-else class="detail-layout">
         <el-divider content-position="left">订单信息</el-divider>
@@ -537,7 +545,16 @@ export default {
       return row.status === 'PAID'
     },
     canCancel(row) {
-      return row.status !== 'CANCELLED' && row.status !== 'COMPLETED'
+      const statusAllowed = row.status === 'UNPAID' || row.status === 'PAID'
+      if (!statusAllowed) {
+        return false
+      }
+      const checkOut = this.parseDateStart(row.checkOutDate)
+      if (!checkOut) {
+        return false
+      }
+      const today = new Date().setHours(0, 0, 0, 0)
+      return today <= checkOut
     },
     roomStatusLabel(value) {
       return getRoomStatusLabel(value)
@@ -565,7 +582,7 @@ export default {
       if (Number.isNaN(num)) {
         return value
       }
-      return num.toFixed(2)
+      return `¥${num.toFixed(2)}`
     },
     stayNights(order) {
       const inDate = order?.checkInDate
@@ -654,18 +671,53 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.header-row {
+.oasis-page {
+  .content-card {
+    border: 1px solid #dce9e5;
+    border-radius: 16px;
+    box-shadow: 0 12px 26px rgba(11, 63, 54, 0.08);
+  }
+}
+
+.page-toolbar {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(120deg, rgba(9, 38, 50, 0.93), rgba(17, 93, 89, 0.86));
+  box-shadow: 0 10px 26px rgba(9, 38, 50, 0.22);
+}
+
+.toolbar-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #f8fcff;
+  letter-spacing: 0.4px;
+}
+
+.toolbar-title p {
+  margin: 6px 0 0;
+  color: rgba(226, 242, 246, 0.86);
+  font-size: 13px;
 }
 
 .filter-form {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  padding: 14px 12px 2px;
+  background: #f7fbfa;
+  border: 1px solid #dcebe7;
+  border-radius: 10px;
+}
+
+.data-table {
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .pagination-wrapper {
-  margin-top: 16px;
+  margin-top: 18px;
   text-align: right;
 }
 
@@ -673,35 +725,55 @@ export default {
   color: #f56c6c;
 }
 
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.op-btn + .op-btn {
+  margin-left: 10px;
+}
+
 .detail-layout {
   max-height: 62vh;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 4px 6px 2px;
+}
+
+.detail-dialog /deep/ .el-divider__text {
+  font-size: 14px;
+  color: #16545d;
+  font-weight: 600;
 }
 
 .detail-grid {
-  margin: 6px 0 2px;
+  margin: 8px 0 4px;
 }
 
 .detail-item {
-  display: flex;
-  min-height: 34px;
+  display: block;
+  min-height: 66px;
   line-height: 18px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   margin-bottom: 10px;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-  background: #fafafa;
+  border: 1px solid #deebe8;
+  border-radius: 8px;
+  background: #f7fbfa;
 }
 
 .detail-label {
-  width: 84px;
-  flex-shrink: 0;
-  color: #909399;
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #5d7a81;
 }
 
 .detail-value {
-  color: #303133;
+  color: #21343b;
+  font-size: 14px;
+  font-weight: 500;
   word-break: break-all;
 }
 </style>

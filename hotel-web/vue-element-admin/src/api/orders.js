@@ -33,7 +33,7 @@ export function updateOrder(id, data) {
 
 export function cancelOrder(id) {
   return request({
-    url: `/orders/${id}`,
+    url: `/bookings/${id}/cancel`,
     method: 'delete'
   })
 }
