@@ -25,6 +25,18 @@
       <el-table v-loading="loading" :data="tableData" border>
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="typeName" label="类型名称" min-width="140" />
+        <el-table-column label="图片" min-width="140">
+          <template slot-scope="scope">
+            <el-image
+              v-if="scope.row.img"
+              :src="scope.row.img"
+              fit="cover"
+              class="type-image"
+              :preview-src-list="[scope.row.img]"
+            />
+            <span v-else class="image-empty">无图片</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="price" label="价格/晚" min-width="100" />
         <el-table-column prop="capacity" label="可住人数" min-width="100" />
         <el-table-column prop="bedType" label="床型" min-width="120" />
@@ -77,6 +89,29 @@
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="3" />
         </el-form-item>
+        <el-form-item label="房型图片">
+          <div class="image-uploader-wrap">
+            <el-image
+              v-if="form.img"
+              :src="form.img"
+              fit="cover"
+              class="type-image form-image"
+              :preview-src-list="[form.img]"
+            />
+            <span v-else class="image-empty">未上传图片</span>
+
+            <el-upload
+              action="#"
+              :show-file-list="false"
+              :http-request="handleUploadRequest"
+              :before-upload="beforeUpload"
+              accept="image/*"
+            >
+              <el-button size="mini" type="primary" plain :loading="uploadingImage">上传图片</el-button>
+            </el-upload>
+            <el-button size="mini" type="danger" plain :disabled="!form.img" :loading="removingImage" @click="handleRemoveImage">删除图片</el-button>
+          </div>
+        </el-form-item>
         <el-form-item label="状态">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
@@ -91,7 +126,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { listRoomTypes, getRoomTypeDetail, createRoomType, updateRoomType, deleteRoomType } from '@/api/roomTypes'
+import { listRoomTypes, getRoomTypeDetail, createRoomType, updateRoomType, deleteRoomType, uploadRoomTypeImage, deleteRoomTypeImage } from '@/api/roomTypes'
 
 const createDefaultForm = () => ({
   id: null,
@@ -101,6 +136,7 @@ const createDefaultForm = () => ({
   bedType: '',
   area: 0,
   description: '',
+  img: '',
   status: 1
 })
 
@@ -110,6 +146,8 @@ export default {
     return {
       loading: false,
       submitting: false,
+      uploadingImage: false,
+      removingImage: false,
       total: 0,
       tableData: [],
       query: {
@@ -199,6 +237,7 @@ export default {
           bedType: data.bedType || '',
           area: Number(data.area || 0),
           description: data.description || '',
+          img: data.img || '',
           status: data.status === 0 ? 0 : 1
         }
         this.dialogVisible = true
@@ -207,6 +246,8 @@ export default {
     handleDialogClosed() {
       this.$refs.formRef && this.$refs.formRef.clearValidate()
       this.submitting = false
+      this.uploadingImage = false
+      this.removingImage = false
     },
     buildPayload() {
       return {
@@ -216,8 +257,59 @@ export default {
         bedType: this.form.bedType,
         area: this.form.area,
         description: this.form.description,
+        img: this.form.img || null,
         status: this.form.status
       }
+    },
+    beforeUpload(file) {
+      const isImage = String(file.type || '').startsWith('image/')
+      if (!isImage) {
+        this.$message.error('仅支持上传图片文件')
+        return false
+      }
+      const isLt10M = file.size / 1024 / 1024 < 10
+      if (!isLt10M) {
+        this.$message.error('图片大小不能超过 10MB')
+        return false
+      }
+      return true
+    },
+    handleUploadRequest(option) {
+      this.uploadingImage = true
+      uploadRoomTypeImage(option.file)
+        .then(res => {
+          this.form.img = (res.data && res.data.url) || ''
+          this.$message.success('图片上传成功')
+          option.onSuccess && option.onSuccess(res)
+        })
+        .catch(err => {
+          option.onError && option.onError(err)
+        })
+        .finally(() => {
+          this.uploadingImage = false
+        })
+    },
+    handleRemoveImage() {
+      if (!this.form.img) {
+        return
+      }
+      this.$confirm('确认删除当前房型图片吗？', '提示', { type: 'warning' })
+        .then(() => {
+          if (this.isEdit && this.form.id) {
+            this.removingImage = true
+            return deleteRoomTypeImage(this.form.id)
+              .then(() => {
+                this.form.img = ''
+                this.$message.success('图片已删除')
+              })
+              .finally(() => {
+                this.removingImage = false
+              })
+          }
+          this.form.img = ''
+          this.$message.success('图片已删除')
+        })
+        .catch(() => {})
     },
     handleSubmit() {
       this.$refs.formRef.validate(valid => {
@@ -271,5 +363,27 @@ export default {
 
 .danger-btn {
   color: #f56c6c;
+}
+
+.type-image {
+  width: 90px;
+  height: 60px;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+}
+
+.form-image {
+  margin-right: 10px;
+}
+
+.image-empty {
+  color: #909399;
+  font-size: 12px;
+}
+
+.image-uploader-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 </style>

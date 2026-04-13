@@ -39,6 +39,12 @@ public class Room {
     @TableField(exist = false)
     private String roomTypeDescription;
 
+    @TableField(exist = false)
+    private String roomTypeImg;
+
+    @TableField(exist = false)
+    private String imageUrl;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

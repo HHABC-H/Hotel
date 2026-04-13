@@ -31,3 +31,11 @@ jwt:
   secret: hotel-management-secret-key-2026-for-hs512-min-64-bytes-abcdef1234567890-xyz
   token-prefix: Bearer
   token-expiration: 1800
+
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:}
+    bucket-name: ${ALIYUN_OSS_BUCKET:}
+    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
+    public-base-url: ${ALIYUN_OSS_PUBLIC_BASE_URL:}

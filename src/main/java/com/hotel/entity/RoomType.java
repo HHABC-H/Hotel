@@ -24,6 +24,8 @@ public class RoomType {
 
     private String description;
 
+    private String img;
+
     private Integer status;
 
     @TableField(fill = FieldFill.INSERT)

@@ -196,6 +196,8 @@ public class RoomController {
                 room.setRoomTypeBedType(roomType.getBedType());
                 room.setRoomTypeArea(roomType.getArea());
                 room.setRoomTypeDescription(roomType.getDescription());
+                room.setRoomTypeImg(roomType.getImg());
+                room.setImageUrl(roomType.getImg());
             }
         });
     }

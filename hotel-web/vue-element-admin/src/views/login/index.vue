@@ -2,7 +2,7 @@
   <div class="mall-page">
     <header class="topbar">
       <div class="brand-wrap">
-        <div class="brand-title">秋暮酒店</div>
+        <div class="brand-title">绿洲酒店</div>
         <div class="brand-subtitle">品质客房 · 在线预订</div>
       </div>
 
@@ -43,12 +43,12 @@
 
     <section class="room-section">
       <div class="section-head">
-        <div class="section-title">客房推荐</div>
+        <div class="section-title">全部房间</div>
         <div class="section-actions">
           <el-button size="mini" :type="searchMode === 'available' ? 'success' : 'default'" @click="showAvailableRooms">
-            查询空闲房间
+            仅看空闲
           </el-button>
-          <el-button size="mini" @click="showAllRooms">全部房间</el-button>
+          <el-button size="mini" @click="showAllRooms">显示全部</el-button>
         </div>
       </div>
 
@@ -474,6 +474,9 @@ export default {
     roomImage(room) {
       if (!room) {
         return fallbackRoomImages[0]
+      }
+      if (room.roomTypeImg) {
+        return room.roomTypeImg
       }
       if (room.coverUrl) {
         return room.coverUrl
@@ -904,30 +907,35 @@ export default {
 <style lang="scss" scoped>
 .mall-page {
   min-height: 100%;
-  background: #f7f7f7;
+  background: linear-gradient(180deg, #f2f6fb 0%, #e8eef6 100%);
   padding-bottom: 32px;
 }
 
 .topbar {
-  height: 72px;
-  background: #fff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  height: 74px;
+  background: rgba(8, 16, 28, 0.84);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 20px rgba(5, 14, 24, 0.28);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .brand-wrap {
   .brand-title {
     font-size: 30px;
     font-weight: 800;
-    color: #ff5b1f;
+    color: #f97316;
     line-height: 1.1;
   }
 
   .brand-subtitle {
-    color: #909399;
+    color: rgba(240, 249, 255, 0.72);
     font-size: 13px;
     margin-top: 4px;
   }
@@ -941,10 +949,20 @@ export default {
 
 .search-input {
   width: 320px;
+
+  /deep/ .el-input__inner {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #f8fafc;
+  }
+
+  /deep/ .el-input__inner::placeholder {
+    color: rgba(241, 245, 249, 0.65);
+  }
 }
 
 .welcome-text {
-  color: #606266;
+  color: #e2e8f0;
   font-size: 13px;
 }
 
@@ -1000,7 +1018,7 @@ export default {
 .section-title {
   font-size: 20px;
   font-weight: 700;
-  color: #303133;
+  color: #102a43;
 }
 
 .section-actions {

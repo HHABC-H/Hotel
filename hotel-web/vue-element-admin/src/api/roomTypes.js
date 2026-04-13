@@ -37,3 +37,21 @@ export function deleteRoomType(id) {
     method: 'delete'
   })
 }
+
+export function uploadRoomTypeImage(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/room-types/image/upload',
+    method: 'post',
+    headers: { 'Content-Type': 'multipart/form-data' },
+    data: formData
+  })
+}
+
+export function deleteRoomTypeImage(id) {
+  return request({
+    url: `/room-types/${id}/image`,
+    method: 'delete'
+  })
+}
